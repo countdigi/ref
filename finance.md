@@ -52,6 +52,10 @@ Voluntary 403b (May be opened in addition to SUSORP/FRS)
         - `FTIHX` (6 bp) - Fidelity Total International Index Fund
         - `FXNAX` (2.5 bp) - Fidelity U.S. Bond Index Fund
 - Notes:
+  - Contributions can be either:
+    - Post-Tax Roth (same idea as a Roth 401k)
+    - Pre-Tax Deferred
+    - You can mix, the provider will track which dollars are which
   - Any money contributed to SUSORP 403b portion counts against 20,500 403b contribution limit for 2022
 
 Voluntary 457
@@ -66,6 +70,8 @@ Voluntary 457
       - No good bond selection - other than the NRS Florida Fixed Fund at 3.50 % Return (Insurance Product)
   - AIG
     - Annual Fee: 12 bp
+- Notes:
+  - You can take money out of a 457 before 59.5 years old with no IRS penalty (just pay regular taxes) if you leave your employer
 
 ## Taxes
 
