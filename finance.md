@@ -154,10 +154,11 @@ Long-Term Capital Gains (> 1 Year)
 #### Retirement Contribution Limits
 
 - 403b/401k
-  - 20,500 (+6500 if 50 or older)
+  - 20,500 (+6,500 catch-up age 50 [27,000])
 - 457
-  - 20,500 (+6500 if 50 or older)
-- Roth IRA 6,000 (+1,000 if 50 or older)
+  - 20,500 (+6,500 catch-up age 50 [27,000])
+- Roth IRA
+  - 6,000 (+1,000 catch-up age 50 [7,000])
   - Notes:
     - Single: Phase-out eligibility from 129,000 to 144,000 (MAGI)
     - Married/Jointly: Phase-out eligibility from 204,000 to 214,000 (MAGI)
