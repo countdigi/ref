@@ -65,7 +65,6 @@ Videos
     - Post-Tax Roth (same idea as a Roth 401k)
     - Pre-Tax Deferred
     - You can mix, the provider will track which dollars are which
-  - Any money contributed to SUSORP 403b portion counts against 20,500 403b contribution limit for 2022
 
 ### Voluntary 457
 
