@@ -120,6 +120,7 @@ Then, in addition, you can also open:
 - Payroll
   - 6.20% - OASDI (Old Age, Survivors, and Disability Insurance) (Social Security)
   - 1.45% - Medicare
+  - 7.65% (Total)
   - Notes:
     - OASDI / Medicare Does not apply to HSA, Health Insurance, or Vision contributions
     - So you save 7.65% on these dollars
