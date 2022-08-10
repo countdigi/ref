@@ -107,7 +107,7 @@ Then, in addition, you can also open:
   - Nationwide
     - Annual Fee: 8.25 bps
     - Low-Cost Funds
-      - `VIIIX` (2 bps) - Vanguard Institutional Index Fund - Institutional Plus Shares (SP 500 - same as `VFIAX`)
+      - `VIIIX` (2 bps) - Vanguard Institutional Index Fund - Institutional Plus Shares (SP 500 - same as `VFIAX` or `VOO` ETF)
       - `VTSNX` (8 bps) Vanguard Total International Stock Index Fund Institution (same as `VTIAX` or `VXUS` ETF)
       - No good bond selection - other than the NRS Florida Fixed Fund at 3.50 % Return (Insurance Product)
   - AIG
@@ -119,25 +119,29 @@ Then, in addition, you can also open:
 
 ### 2022
 
-Single
+#### Single
+
 - Standard Deduction
-  -  12,950.00 USD ("13K")
+  - `       12,950 ( 13 K)`
 - Brackets
-  - 10%:  9,950  (10 K)
-  - 12%: 41,775  (40 K)
-  - 22%: 89,075  (90 K)
-  - 24%: 170,050 (170 K)
+  - `10% /   9,950 ( 10 K)`
+  - `12% /  41,775 ( 40 K)`
+  - `22% /  89,075 ( 90 K)`
+  - `24% / 170,050 (170 K)`
 - Long-Term Capital Gains (> 1 Year)
-  - 0%: 41,675
-  - 15%: 459,750
-  - Note:
+  - `0%  /  41,675 ( 40 K)`
+  - `15% / 459,750 (460 K)`
+  - Notes:
     - Even if you go 1 dollar over - all long-term capital gains taxed at 15% (non-progressive)
 
-Retirement
+#### Married Filing Jointly
+
+#### Retirement Contribution Limits
+
 - Roth IRA
   - 6,000 (+1,000 if 50 or older)
     - Single: 129,000 to 144,000 (Phase-out)
-    - Married(Jointly): 204,000 to 214,000 (Phase-out)
+    - Married/Jointly: 204,000 to 214,000 (Phase-out)
 - 403b
   - 20,500 (+6500 if 50 or older)
 - 457
