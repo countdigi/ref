@@ -12,11 +12,17 @@
 ## Investing Links
 
 Videos
-- Robert Berger
-  - How to Create a 3 Fund Portfolio - <https://www.youtube.com/watch?v=kmw8OpGp2rM>
-- Forums
-  - <https://www.reddit.com/r/Bogleheads/>
-  - <https://www.bogleheads.org/forum/index.php>
+- Robert Berger, How to Create a 3 Fund Portfolio
+  - <https://www.youtube.com/watch?v=kmw8OpGp2rM>
+- The White Coat Investor, How to Make a Portfolio Rebalancing Spreadsheet
+  - <https://www.youtube.com/watch?v=9qgSqXiK1nM>
+Forums
+- <https://www.reddit.com/r/Bogleheads/>
+- <https://www.bogleheads.org/forum/index.php>
+Pages
+- <https://www.bogleheads.org/wiki/Prioritizing_investments>
+- <https://www.bogleheads.org/wiki/Three-fund_portfolio>
+- <https://www.bogleheads.org/wiki/Asset_allocation>
 
 ## USF Retirement
 
