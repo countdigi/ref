@@ -122,15 +122,21 @@ Then, in addition, you can also open:
 #### Single
 
 - Standard Deduction
-  - `       12,950 ( 13 K)`
+  ```
+  12,950 ( 13 K)
+  ```
 - Brackets
-  - `10% /   9,950 ( 10 K)`
-  - `12% /  41,775 ( 40 K)`
-  - `22% /  89,075 ( 90 K)`
-  - `24% / 170,050 (170 K)`
+  ```
+  10% /   9,950 ( 10 K)
+  12% /  41,775 ( 40 K)
+  22% /  89,075 ( 90 K)
+  24% / 170,050 (170 K)
+  ```
 - Long-Term Capital Gains (> 1 Year)
-  - `0%  /  41,675 ( 40 K)`
-  - `15% / 459,750 (460 K)`
+  ```
+  0%  /  41,675 ( 40 K)
+  15% / 459,750 (460 K)
+  ```
   - Notes:
     - Even if you go 1 dollar over - all long-term capital gains taxed at 15% (non-progressive)
 
