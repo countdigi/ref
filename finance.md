@@ -117,6 +117,9 @@ Then, in addition, you can also open:
 
 ## Taxes
 
+- Tax Cuts and Jobs Act of 2017 (TCJA)
+  - Expires after 2025 - so 2025 taxes will still be at lower rate
+  - See: <https://www.investopedia.com/taxes/trumps-tax-reform-plan-explained/>
 - Payroll
   - 6.20% - OASDI (Old Age, Survivors, and Disability Insurance) (Social Security)
   - 1.45% - Medicare
