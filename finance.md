@@ -122,7 +122,7 @@ Then, in addition, you can also open:
   - 1.45% - Medicare
   - Notes:
     - Total: 7.65%
-    - OASDI / Medicare Does not apply to HSA, Health Insurance, or Vision contributions
+    - OASDI / Medicare does not apply to HSA, Health Insurance, or Vision contributions
     - You save 7.65% on these dollars
 
 ### 2022
