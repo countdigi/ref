@@ -17,9 +17,10 @@ Videos
   - <https://www.reddit.com/r/Bogleheads/>
   - <https://www.bogleheads.org/forum/index.php>
 
-## USF Providers
+## USF Retirement
 
-SUSORP (State University System Optional Retirement Plan)
+### SUSORP (State University System Optional Retirement Plan)
+
 - Account Breakdown
   - 401A
     - 5.14% - Employer Funded Contribution (401A)
@@ -42,7 +43,8 @@ SUSORP (State University System Optional Retirement Plan)
   - Equitable
     - Annual Fee: 55.00 USD
 
-Voluntary 403b (May be opened in addition to SUSORP/FRS)
+### Voluntary 403b (May be opened in addition to SUSORP/FRS)
+
 - Providers
     - TIAA
       - Annual Fee: 4.4 bp
@@ -63,7 +65,8 @@ Voluntary 403b (May be opened in addition to SUSORP/FRS)
     - You can mix, the provider will track which dollars are which
   - Any money contributed to SUSORP 403b portion counts against 20,500 403b contribution limit for 2022
 
-Voluntary 457
+### Voluntary 457
+
 - Providers
   - Voya
     - Annual Fee: 6 bp
