@@ -126,29 +126,29 @@ Standard Deduction
 
 Brackets
   10% /   9,950 ( 10 K)
-  12% /  41,775 ( 40 K)
+  12% /  41,775 ( 42 K)
   22% /  89,075 ( 90 K)
   24% / 170,050 (170 K)
 
 Long-Term Capital Gains (> 1 Year)
-  0%  /  41,675 ( 40 K)
+  0%  /  41,675 ( 42 K)
   15% / 459,750 (460 K)
 ```
 
 #### Married (Filing Jointly)
 ```
 Standard Deduction
-         25,900 ( 25 K)
+         25,900 ( 26 K)
 
 Brackets
-  10% /  20,550 ( 20 K)
+  10% /  20,550 ( 21 K)
   12% /  83,550 ( 84 K)
   22% / 178,150 (180 K)
   24% / 340,100 (340 K)
 
 Long-Term Capital Gains (> 1 Year)
-   0% /  83,350
-  15% / 517,200
+   0% /  83,350 ( 84 K)
+  15% / 517,200 (520 K)
 ```
 
 #### Retirement Contribution Limits
@@ -159,5 +159,6 @@ Long-Term Capital Gains (> 1 Year)
   - 20,500 (+6500 if 50 or older)
 - Roth IRA 6,000 (+1,000 if 50 or older)
   - Notes:
-    - Single: Phase-out eligibility from 129,000 to 144,000
-    - Married/Jointly: Phase-out eligibility from 204,000 to 214,000
+    - Single: Phase-out eligibility from 129,000 to 144,000 (MAGI)
+    - Married/Jointly: Phase-out eligibility from 204,000 to 214,000 (MAGI)
+    - MAGI (Modified Adjusted Gross Income)
