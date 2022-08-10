@@ -1,4 +1,4 @@
-# Investing
+# Finance
 
 ## Notes
 
@@ -10,7 +10,12 @@
 
 ## Investing Links
 
-- <https://www.reddit.com/r/Bogleheads/>
+Videos
+- Robert Berger
+  - How to Create a 3 Fund Portfolio - <https://www.youtube.com/watch?v=kmw8OpGp2rM>
+- Forums
+  - <https://www.reddit.com/r/Bogleheads/>
+  - <https://www.bogleheads.org/forum/index.php>
 
 ## USF Providers
 
@@ -81,20 +86,20 @@ Single
 - Standard Deduction
   -  12,950.00 USD ("13K")
 - Brackets
-  - 10%:  9950  (10 K)
-  - 12%: 41775  (40 K)
-  - 22%: 89075  (90 K)
-  - 24%: 170050 (170 K)
+  - 10%:  9,950  (10 K)
+  - 12%: 41,775  (40 K)
+  - 22%: 89,075  (90 K)
+  - 24%: 170,050 (170 K)
 - Long-Term Capital Gains (> 1 Year)
-  - 0%: 41675
-  - 15%: 459750
+  - 0%: 41,675
+  - 15%: 459,750
   - Note:
     - Even if you go 1 dollar over - all long-term capital gains taxed at 15% (non-progressive)
 
 Retirement
 - Roth IRA
   - 6,000 (+1,000 if 50 or older)
-    - Single: 1290,00 to 144,000 (Phase-out)
+    - Single: 129,000 to 144,000 (Phase-out)
     - Married(Jointly): 204,000 to 214,000 (Phase-out)
 - 403B
   - 20,500 (+6500 if 50 or older)
