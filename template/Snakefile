@@ -1,0 +1,1558 @@
+#=====================================================================================================
+# Snakefile
+# Invoke with "bin/snake" which sets RUN and WORK environmental variables and creates directories
+# if not present. See: http://snakemake.readthedocs.io/en/stable/tutorial/tutorial.html
+#=====================================================================================================
+
+from os.path import abspath, basename, dirname, exists, join, splitext
+    # These short names will be available within the snakefile as well as well as in a python run block
+
+shell.prefix("threads=${{SLURM_JOB_CPUS_PER_NODE:-1}}; set -euo pipefail; set -x;")
+    # Set debug tracing and make sure any shell error fails (use "<command> || true" construct to override).
+    # The variable threads is set to the number of cpus on the node when we specify cpus="all" on the
+    # params line which causes the job to be submitted with the --exclusive flag asking for the entire node
+
+RUN, WORK, BASE = os.environ["RUN"], os.environ["WORK"], os.environ["BASE"]
+    # Assign environmental variables RUN and WORK set by bin/snake to local variables
+
+#=====================================================================================================
+# Singularity Specifications
+#=====================================================================================================
+
+SINGULARITY_CMD = " ".join([
+    "/shares/hii/sw/singularity/latest/bin/singularity",
+    "exec",
+    "--bind /shares:/shares",
+    "--bind /hii/work:/hii/work"
+])
+
+#=====================================================================================================
+# Image Specifications
+#=====================================================================================================
+
+IMAGE_HDS_UTIL = os.environ.get("IMAGE_HDS_UTIL", "/shares/hii/images/bioinfo/statgen-hds-util/5c3b611.simg")
+
+#=====================================================================================================
+# Global Variables
+#=====================================================================================================
+
+R2_VALUE = os.environ.get("R2_VALUE", "0.3")
+
+CHROMOSOMES = [f"chr{n}" for n in range(1, 23)] + ["chrX"]
+
+#=====================================================================================================
+# Helper functions
+#=====================================================================================================
+
+def mendelian_error_family_db(fname):
+    """
+    Build a dict with key=mother,father and value=[child[,child...]]
+    """
+    db = {}
+
+    with open(fname) as f:
+        for line in f:
+            mother, father, child = line.rstrip("\n").split(",")
+            k = ",".join([mother, father])
+            db.setdefault(k, []).append(child)
+
+    return db
+
+def remove_from_list(l, items):
+    return [x for x in l if x not in items]
+
+def update_samples(input_prefix, fams_orig, output_file, format):
+    """
+    The VCF format appends fid/iid into single field, drops mid/pid, and sex info so we must repopulate this.
+
+    FAM fields:
+      - Family ID ('FID')
+      - Within-family ID ('IID'; cannot be '0')
+      - Within-family ID of father ('0' if father isn't in dataset)
+      - Within-family ID of mother ('0' if mother isn't in dataset)
+      - Sex code ('1' = male, '2' = female, '0' = unknown)
+      - Phenotype value ('1' = control, '2' = case, '-9'/'0'/non-numeric = missing data if case/control)
+    """
+
+    db = {}
+
+    for fname in fams_orig:
+        with open(fname) as f:
+            for line in f:
+                fields = line.rstrip("\n").split()
+                k = "_".join(fields[:2]) # [FID, IID]
+
+                if format == "pgen":
+                    v = fields[:-1] + ["NA"] # Pgen format uses NA instead of -9 for missing Phenotypes
+                else:
+                    v = fields
+
+                if k in db:
+                    if db[k] != v:
+                        print(f"Duplicate key '{k}' with different value. Exiting...", file=sys.stderr)
+                        sys.exit(1)
+                else:
+                    db[k] = v
+
+    with open(output_file, "w") as f_out:
+        with open(input_prefix + "." + SAMPLE_EXT[format]) as f:
+
+            if format == "pgen":
+                next(f)
+                print("\t".join(["#FID", "IID", "PAT", "MAT", "SEX", "PHENO1"]), file=f_out)
+
+            for line in f:
+                fields = line.rstrip("\n").split()
+                k = fields[1] # concatenated FID_IID
+                print("\t".join(db[k]), file=f_out)
+
+#=====================================================================================================
+# Pipeline Variables defined/overridden by RUN
+#=====================================================================================================
+
+RUN = os.environ.get("RUN", "test")
+
+INPUT_VCF_ROOT = "/shares/hii/labdata/teddy/fac-parikhh/GWAS-GRCh38-Imputed-Combined-TOPMed-TEDDYRef-2/mask/MICH"
+
+INPUT_TOPMED_IC_ROOT = "/shares/hii/labdata/teddy/fac-parikhh/GWAS-GRCh38-Imputed-TOPMed-2/mask/MICH"
+
+WGS_VCF_DIR = "/shares/hii/labdata/teddy/um-hii/CORRECTED-Human-WGS-Variant-Calls-Phased-2/mask/MICH/teddy/by-chromosome"
+
+# We use these to re-populate parental ids and sex which get stripped from imputation w/ the VCF format
+FAMS_ORIG = [
+  "/shares/hii/labdata/teddy/uva-hii/GWAS-4/output/mask/MICH/ImmunoChip_all/children_parents_immunochip.fam",
+  "/shares/hii/labdata/teddy/uva-hii/GWAS-4/output/mask/MICH/T1DExomeChip_all/children_parents_t1dexome.fam"
+]
+
+TEDDY_CHILDREN = "/shares/hii/labdata/teddy/uva-hii/GWAS-4/input/documents/teddy_children_info_2021_04_05.txt"
+
+DECODER_RING = join(os.environ.get("METADATA_TEDDY"), "masks", "MICH.csv")
+
+EUR_CONTROLS = join(BASE, "metadata/mask/MICH/ImmunoChip_T1DExomeChip_european_controls_unrelated_wo_admixture.tsv")
+  # IID                 Ancestry    Outcome   Relatedness
+  # MICH591925488080    European    0         unrelated
+  # MICH437300849810    European    0         unrelated
+
+INPUT_VCF_DIR = {
+    "immuno": join(INPUT_VCF_ROOT, "immuno_fwd_unique"),
+    "exome": join(INPUT_VCF_ROOT, "t1dexome_fwd_unique"),
+    "merged": join(INPUT_VCF_ROOT, "t1dexome_immuno_merge_fwd"),
+}
+
+INPUT_TOPMED_IC = {
+    "immuno": join(INPUT_TOPMED_IC_ROOT, "immuno_fwd_unique_meta"),
+    "exome": join(INPUT_TOPMED_IC_ROOT,  "t1dexome_fwd_unique_meta"),
+    "merged": join(INPUT_TOPMED_IC_ROOT, "t1dexome_immuno_merge_fwd_meta")
+}
+
+IC_LEGEND_G1K_DIR = "/shares/hii/bioinfo/ref/1000genomes.ebi.ac.uk/vol1/ftp/data_collections/1000_genomes_project/release/20190312_biallelic_SNV_and_INDEL"
+
+DBSNP_VCF_GRCH38 = "/shares/hii/bioinfo/ref/ncbi/snp/archive/b155/VCF/GCF_000001405.39.gz"
+
+DBSNP_VCF_MAP_GRCH38 = join(BASE, "metadata", "GCF_000001405.39.tsv")
+
+QC_CHIP = "merged"
+
+CHIPS = ["immuno", "exome", "merged"]
+
+WGS_GWAS_CONCORDANCE_THRESHOLD = "0.975"
+
+TEST_REGIONS = ""
+
+MEND_ERR_FAMILY_DB = mendelian_error_family_db(join(BASE, "metadata/mask/MICH/teddy_gwas_trios.csv"))
+
+LABDATA = os.environ.get("LABDATA")
+
+MASK_DECODER = join(os.environ.get("METADATA_TEDDY"), "masks", "MICH.csv")
+
+PCA_DIR = join(LABDATA, "teddy", "uva-hii", "GWAS-4", "input", "documents")
+
+PCA_IMMUNO = join(PCA_DIR, "ImmunoChip", "pca_analysis", "children_parents_immunochip_pc.txt")
+
+PCA_EXOME = join(PCA_DIR, "Parents_T1DExomeChip", "pca_analysis", "children_parents_t1dexome_pc.txt")
+
+PCA_IMMUNO_FAM = join(PCA_DIR, "ImmunoChip", "pca_analysis", "children_parents_immunochippca_input.fam")
+
+PCA_EXOME_FAM = join(PCA_DIR, "Parents_T1DExomeChip", "pca_analysis", "children_parents_t1dexomepca_input.fam")
+
+if RUN == "test":
+    CHROMOSOMES = ["chr22", "chrX"]
+    TEST_REGIONS = join(BASE, "metadata/test_regions.tsv")
+    MEND_ERR_FAMILY_DB = { k: MEND_ERR_FAMILY_DB[k] for k in list(MEND_ERR_FAMILY_DB.keys())[:3] }
+
+elif RUN == "prod":
+    pass
+
+elif RUN == "topmed-ic":
+    pass
+
+elif RUN == "dag":
+    CHROMOSOMES = ["chr1"]
+
+else:
+    print(f"Run '{RUN}' not defined in Snakefile. Exiting.", file=sys.stderr)
+    sys.exit(1)
+
+if os.environ.get("CHROMOSOMES"):
+    CHROMOSOMES = os.environ["CHROMOSOMES"].split(",")
+
+#=====================================================================================================
+# Commands
+#=====================================================================================================
+
+BCFTOOLS = " ".join([SINGULARITY_CMD, IMAGE_HTSLIB, "bcftools"])
+BGZIP = " ".join([SINGULARITY_CMD, IMAGE_HTSLIB, "bgzip"])
+HDS_UTIL = " ".join([SINGULARITY_CMD, IMAGE_HDS_UTIL, "hds-util"])
+IC = " ".join(["LANG=C", SINGULARITY_CMD, IMAGE_IC, "/usr/local/bin/ic.pl"])
+KING = " ".join([SINGULARITY_CMD, IMAGE_KING, "king"])
+PICARD = " ".join([SINGULARITY_CMD, IMAGE_PICARD, "java -jar /usr/local/bin/picard.jar"])
+PLINK19 = " ".join([SINGULARITY_CMD, IMAGE_PLINK19, "plink"])
+PLINK20 = " ".join([SINGULARITY_CMD, IMAGE_PLINK20, "plink2"])
+PYTHON = " ".join([SINGULARITY_CMD, IMAGE_PYTHON, "/usr/local/bin/python3"])
+RUTH = " ".join([SINGULARITY_CMD, IMAGE_RUTH, "ruth"])
+SNPSIFT = " ".join([SINGULARITY_CMD, IMAGE_SNPSIFT, "java", "${JAVA_OPTS:-}", "-jar", "/snpEff/SnpSift.jar"])
+XWAS = " ".join([SINGULARITY_CMD, IMAGE_XWAS, "/bin/bash -x /xwas-3.0/bin/run_QC.sh"])
+
+#=====================================================================================================
+# Driving Rules - prefix with target_ (e.g. target_<name>)
+#=====================================================================================================
+
+if RUN == "topmed-ic":
+    rule target_all:
+        input:
+            expand(join(WORK, "ic/{chip}/{chr}"), chip=["immuno"], chr=remove_from_list(CHROMOSOMES, ["chrX"]))
+
+else:
+    rule target_all:
+        input:
+            join(WORK, "cc_all_concat/all-chromosomes.bcf"),
+
+            join(WORK, "cc_teddy_children_concat/all-chromosomes.bcf"),
+
+            expand(join(WORK, "allele_freq/{chip}/{subjects}/{sex}/{chr}"),
+                chip=QC_CHIP, subjects=SUBJECTS, sex=["both"], chr=remove_from_list(CHROMOSOMES, ["chrX"])),
+
+            expand(join(WORK, "allele_freq/{chip}/{subjects}/{sex}/{chr}"),
+                chip=QC_CHIP, subjects=SUBJECTS, sex=["male", "female"], chr=["chrX"])
+
+rule target_cc_filter_ruth:
+    input:
+        expand(join(WORK, "cc_filter_ruth/{chr}.bcf"), chr=CHROMOSOMES),
+        expand(join(WORK, "cc_filter_ruth_snps/{subset}/{chr}.snps_exclude.txt"), subset=["all", "controls"], chr=CHROMOSOMES)
+
+#=====================================================================================================
+# Rules
+#=====================================================================================================
+
+localrules:
+    cc_filter_ruth_control_samples,
+    cc_filter_ruth_pca,
+    cc_samples_common,
+    mend_err_merge_list,
+    merge_chips_update_samples,
+    snps_to_keep,
+    update_samples
+
+wildcard_constraints:
+    method="[^/]+", chip="[^/]+", chr="[^/]+", format="[^/]+", sex="[^/]+", subjects="[^/]+"
+
+rule allele_freq:
+    input:
+        prefix=join(WORK, "subjects_by_sex/{chip}/{subjects}/pgen/{sex}/{chr}")
+    output:
+        prefix=join(WORK, "allele_freq/{chip}/{subjects}/{sex}/{chr}")
+    params:
+        job_name="allele_freq-{chip}-{subjects}-{sex}-{chr}", log="allele_freq/{chip}/{subjects}/{sex}/{chr}.log", cpus="2", mem="10G", time="1-0",
+        mem_mb="10000"
+    shell:
+        """
+        plink_args="--silent --threads {params.cpus} --memory {params.mem_mb}"
+
+        {PLINK20} $plink_args \
+          --pfile {input.prefix} \
+          --freq \
+          --nonfounders \
+          --out {output.prefix}.frq.nonfounders
+
+        {PLINK20} $plink_args \
+          --pfile {input.prefix} \
+          --missing \
+          --nonfounders \
+          --out {output.prefix}.missing.nonfounders
+
+        /bin/touch {output.prefix}
+        """
+
+rule cc_all:
+    """
+    Reorder the samples in sorted order for good form but also so we can concat with chrX.
+    Note cc_tedddy_children does this implictly when we took a subset of the samples (which were sorted).
+    """
+    input:
+        bcf=join(WORK, "cc_filter/{chr}.bcf")
+    output:
+        bcf=join(WORK, "cc_all/{chr}.bcf")
+    params:
+        job_name="cc_all-{chr}", log="cc_all/{chr}.log", cpus="2", mem="10G", time="1-0"
+    shell:
+        """
+        get_samples_sorted() {{
+          {BCFTOOLS} query --list-samples {input.bcf} | sort
+        }}
+
+        {BCFTOOLS} view --output={output.bcf} --output-type=b --samples-file=<(get_samples_sorted) {input.bcf}
+        {BCFTOOLS} index {output.bcf}
+        """
+
+rule cc_all_concat:
+    input:
+        bcfs=expand(join(WORK, "cc_all/{chr}.bcf"), chr=CHROMOSOMES)
+    output:
+        bcf=join(WORK, "cc_all_concat/all-chromosomes.bcf")
+    params:
+        job_name="cc_all_concat", log="cc_all_concat.log", cpus="2", mem="20G", time="7-0"
+    shell:
+        """
+        sort_filelist() {{
+          set +x
+          for f in {input.bcfs}; do echo $f; done | sort --version-sort
+          set -x
+        }}
+
+        sort_filelist
+
+        {BCFTOOLS} concat --file-list=<(sort_filelist) --output-type=b --output={output.bcf}
+        {BCFTOOLS} index {output.bcf}
+        """
+
+rule cc_filter:
+    input:
+        control_samples=join(WORK, "cc_filter_ruth_control_samples/{chr}.txt"),
+        bcf=join(WORK, "snpsift_annotate/gwas/{chr}.bcf"),
+        exclude_snps_txt=join(WORK, "cc_snpsift_exclude/{chr}.txt")
+    output:
+        bcf=join(WORK, "cc_filter/{subset}/{chr}.bcf")
+    params:
+        job_name="cc_filter-{subset}-{chr}", log="cc_filter/{subset}/{chr}.log", cpus="2", mem="10G", time="1-0"
+    shell:
+        """
+        if [[ '{wildcards.subset}' == 'controls' ]]; then
+          _bcftools_opts="--samples-file={input.control_samples}"
+        else
+          _bcftools_opts=""
+        fi
+
+        {BCFTOOLS} view \
+          $_bcftools_opts \
+          --exclude ID==@{input.exclude_snps_txt} \
+          --threads={params.cpus} --output-type=b --output={output.bcf} {input.bcf}
+
+        {BCFTOOLS} index --threads={params.cpus} {output.bcf}
+        """
+
+#------------------------------------------------------------------------------------------------------
+# Ruth - Robust Unified Hardy-Weinberg Equilibrium Test (https://github.com/statgen/ruth)
+#------------------------------------------------------------------------------------------------------
+
+def cc_filter_ruth_params_filters(wildcards):
+    if wildcards.chr == "chr6":
+        return " ".join([
+            "0,10,chr6:0-28510120",
+            "0,20,chr6:28510121-33480577",
+            "0,10,chr6:33480578-"])
+    elif wildcards.chr == "chrX":
+        return "0,4,"
+    else:
+        return "0,10,"
+
+rule cc_filter_ruth_snps:
+    """
+    Generate a list of SNPs to exclude. Downstream we only use the 'controls' wildcard output as the
+    filter list to apply to the full cc_filter/all but we generate an 'all' wildcard version for comparison
+    purposes only.
+    """
+    input:
+        pca_tsv=join(WORK, "cc_filter_ruth_pca/{subset}/{chr}.tsv"),
+        bcf=join(WORK, "cc_filter/{subset}/{chr}.bcf")
+    output:
+        snps_exclude=join(WORK, "cc_filter_ruth_snps/{subset}/{chr}.snps_exclude.txt")
+    params:
+        job_name="cc_filter_ruth_snps-{subset}-{chr}", log="cc_filter_ruth_snps/{subset}/{chr}.log", cpus="2", mem="20G", time="1-0",
+        work=join(WORK, "cc_filter_ruth_snps/{subset}/{chr}.work"),
+        filters=cc_filter_ruth_params_filters
+    shell:
+        """
+        /bin/mkdir -p {params.work} && cd {params.work}
+
+        if [[ '{wildcards.chr}' == 'chrX' ]]; then _ruth_opts='--x-label chrX'; else _ruth_opts=''; fi
+
+        {RUTH} \
+          --vcf {input.bcf} \
+          --evec {input.pca_tsv} \
+          --field GT \
+          --lambda 0 \
+          --lrt-em \
+          $_ruth_opts \
+          --out ruth.vcf
+
+        {BCFTOOLS} view --output=ruth.bcf ruth.vcf
+
+        {BCFTOOLS} index ruth.bcf
+
+        for _filter in {params.filters}; do
+            _hwe_slp_i_min=$(echo $_filter | cut -d, -f1)
+            _hwe_slp_i_max=$(echo $_filter | cut -d, -f2)
+            _range=$(echo $_filter | cut -d, -f3)
+
+            {BCFTOOLS} view ruth.bcf $_range \
+              | {BCFTOOLS} query \
+                  --include="HWE_SLP_I < $_hwe_slp_i_min || HWE_SLP_I > $_hwe_slp_i_max" \
+                  --format='%ID\t%POS\t%REF\t%ALT\n'
+
+        done | sort --version-sort > {output.snps_exclude}.full
+
+        cut -f1 {output.snps_exclude}.full | sort --version-sort | uniq > {output.snps_exclude}
+
+        wc -l {output.snps_exclude}.full {output.snps_exclude}
+
+        cd - && /bin/rm -rf {params.work}
+        """
+
+rule cc_filter_ruth:
+    input:
+        bcf=join(WORK, "cc_filter/all/{chr}.bcf"),
+        snps_exclude=join(WORK, "cc_filter_ruth_snps/controls/{chr}.snps_exclude.txt")
+    output:
+        bcf=join(WORK, "cc_filter_ruth/{chr}.bcf")
+    params:
+        job_name="cc_filter_ruth-{chr}", log="cc_filter_ruth/{chr}.log", cpus="2", mem="20G", time="1-0"
+    shell:
+        """
+        {BCFTOOLS} view \
+          --no-version \
+          --threads={params.cpus} \
+          --exclude ID==@{input.snps_exclude} \
+          --output-type=b \
+          --output={output.bcf} \
+          {input.bcf}
+
+        {BCFTOOLS} index {output.bcf}
+        """
+
+rule cc_filter_ruth_pca:
+    input:
+        control_samples=join(WORK, "cc_filter_ruth_control_samples/{chr}.txt"),
+        mask_decoder=MASK_DECODER,
+        pca_immuno=PCA_IMMUNO,
+        pca_exome=PCA_EXOME,
+    output:
+        all_tsv=join(WORK, "cc_filter_ruth_pca/all/{chr}.tsv"),
+        controls_tsv=join(WORK, "cc_filter_ruth_pca/controls/{chr}.tsv")
+    params:
+        job_name="cc_filter_ruth_pca", log="cc_filter_ruth_pca.log", cpus="1", mem="10G", time="0-1"
+    shell:
+        """
+        {PYTHON} {BASE}/scripts/merge_mask_pca_files.py \
+          {input.mask_decoder} \
+          {input.pca_immuno} \
+          {input.pca_exome} \
+          > {output.all_tsv}
+
+        grep --file={input.control_samples} --fixed-strings {output.all_tsv} \
+          > {output.controls_tsv}
+        """
+
+rule cc_filter_ruth_control_samples:
+    """
+    Create a samples file (masked FID_IID) with only control samples (merge of immuno/exome). Exclude the
+    few samples where they are listed as a control in immuno but a non-control in exome (or vice-versa).
+    """
+    input:
+        bcf=join(WORK, "snpsift_annotate/gwas/{chr}.bcf"),
+        mask_decoder=MASK_DECODER,
+        pca_immuno_fam=PCA_IMMUNO_FAM,
+        pca_exome_fam=PCA_EXOME_FAM,
+    output:
+        samples=join(WORK, "cc_filter_ruth_control_samples/{chr}.txt")
+    params:
+        job_name="cc_filter_ruth_control_samples-{chr}", log="cc_filter_ruth_control_samples/{chr}.log", cpus="1", mem="10G", time="0-1"
+    shell:
+        """
+        {PYTHON} {BASE}/scripts/control_samples.py \
+          {input.mask_decoder} \
+          {input.pca_immuno_fam} \
+          {input.pca_exome_fam} \
+          > {output.samples}.raw
+
+        # Reduce to a union of samples present in the upstream bcf
+
+        comm -12 \
+          <({BCFTOOLS} query --list-samples {input.bcf} | sort) \
+          <(sort {output.samples}.raw | uniq) \
+          > {output.samples}
+        """
+
+rule cc_samples:
+    input:
+        wgs_bcf=join(WGS_VCF_DIR, "{chr}.bcf"),
+        gwas_bcf=join(WORK, "snpsift_annotate/gwas/{chr}.bcf")
+    output:
+        wgs_samples=join(WORK, "cc_samples/wgs/{chr}.txt"),
+        gwas_samples=join(WORK, "cc_samples/gwas/{chr}.txt")
+    params:
+        job_name="cc_samples-{chr}", log="cc_samples/{chr}.log", cpus="1", mem="10G", time="0-1"
+    shell:
+        """
+        {BCFTOOLS} query --list-samples {input.wgs_bcf} > {output.wgs_samples}
+        {BCFTOOLS} query --list-samples {input.gwas_bcf} > {output.gwas_samples}
+        """
+
+rule cc_samples_common:
+    """
+    Find the samples common between WGS and GWAS samples then generate mapping files with their specific sample name format
+    to a common sample name format.
+    """
+    input:
+        wgs_samples=join(WORK, "cc_samples/wgs/{chr}.txt"),
+        gwas_samples=join(WORK, "cc_samples/gwas/{chr}.txt")
+    output:
+        wgs_map=join(WORK, "cc_samples_common/wgs/{chr}.tsv"),
+        gwas_map=join(WORK, "cc_samples_common/gwas/{chr}.tsv")
+    params:
+        job_name="cc_samples_common-{chr}", log="cc_samples_common/{chr}.log", cpus="1", mem="10G", time="0-1"
+    run:
+        db_wgs = {}
+        db_gwas = {}
+
+        with open(input.wgs_samples) as f:
+            for line in f:
+                iid, phase = line.rstrip("\n").split("_")
+                if iid in db_wgs:
+                    if phase == "P2":
+                        db_wgs[iid] = iid + "_" + phase
+                else:
+                    db_wgs[iid] = iid + "_" + phase
+
+        with open(input.gwas_samples) as f:
+            for line in f:
+                fid, iid = line.rstrip("\n").split("_")
+                if iid in db_gwas:
+                    print(f"Error {iid} duplicate in db_gwas. Exiting.", file=sys.stderr)
+                    sys.exit(1)
+                else:
+                    db_gwas[iid] = fid + "_" + iid
+
+        samples_common = set(db_wgs).intersection(db_gwas)
+
+        with open(output.wgs_map, "w") as f_out:
+            for sample in samples_common:
+                print(" ".join([db_wgs[sample], sample]), file=f_out)
+
+        with open(output.gwas_map, "w") as f_out:
+            for sample in samples_common:
+                print(" ".join([db_gwas[sample], sample]), file=f_out)
+
+def cc_samples_rename_input(wildcards):
+    if wildcards.method == "gwas":
+        return join(WORK, "snpsift_annotate", "gwas", wildcards.chr + ".bcf")
+
+    elif wildcards.method == "wgs":
+        return join(WGS_VCF_DIR, wildcards.chr + ".bcf")
+
+    else:
+        sys.exit(1)
+
+rule cc_samples_rename:
+    """
+    Filter common samples between WGS and GWAS and rename to the commmon sample name format.
+    """
+    input:
+        bcf=cc_samples_rename_input,
+        map=join(WORK, "cc_samples_common/{method}/{chr}.tsv")
+    output:
+        bcf=join(WORK, "cc_samples_rename/{method}/{chr}.bcf")
+    params:
+        job_name="cc_samples_rename-{method}-{chr}", log="cc_samples_rename/{method}/{chr}.log", cpus="1", mem="10G", time="1-0"
+    shell:
+        """
+        {BCFTOOLS} view --no-version --samples-file=<(cut -d' ' -f1 {input.map}) --output-type=b {input.bcf} \
+          | {BCFTOOLS} reheader --samples={input.map} --output={output.bcf}
+
+        {BCFTOOLS} index {output.bcf}
+        """
+
+rule cc_snpsift_concordance:
+    """
+    See: <https://pcingola.github.io/SnpEff/ss_concordance/>
+    NOTE: For WGS the extra contigs cause an issue w/ SnpSift so remove these and just leave the single chromosome config.
+    """
+    input:
+        wgs_bcf=join(WORK, "snpsift_annotate/wgs/{chr}.bcf"),
+        gwas_bcf=join(WORK, "cc_samples_rename/gwas/{chr}.bcf")
+    output:
+        wgs_vcf=temp(join(WORK, "cc_snpsift_concordance/{chr}.wgs.vcf")),
+        gwas_vcf=temp(join(WORK, "cc_snpsift_concordance/{chr}.gwas.vcf")),
+        tsv=join(WORK, "cc_snpsift_concordance/{chr}.tsv")
+    shadow:
+        "shallow"
+    params:
+        job_name="cc_snpsift_concordance-{chr}", log="cc_snpsift_concordance/{chr}.log", cpus="2", mem="30G", time="1-0",
+        java_opts="-Xmx28g"
+    shell:
+        """
+        {BCFTOOLS} view --no-version --output-type=v --output={output.gwas_vcf} {input.gwas_bcf}
+
+        {{
+          {BCFTOOLS} view --no-version --header-only {input.wgs_bcf} \
+            | sed "s/^##contig.*/##contig=<ID={wildcards.chr}>/" | uniq
+
+          {BCFTOOLS} view --no-header {input.wgs_bcf}
+        }} > {output.wgs_vcf}
+
+        JAVA_OPTS="{params.java_opts}"
+        {SNPSIFT} concordance -v {output.wgs_vcf} {output.gwas_vcf} > {output.tsv}
+        """
+
+rule cc_snpsift_exclude:
+    input:
+        tsv=join(WORK, "cc_snpsift_concordance/{chr}.tsv"),
+        vcf=join(WORK, "cc_snpsift_concordance/{chr}.gwas.vcf")
+    output:
+        txt=join(WORK, "cc_snpsift_exclude/{chr}.txt"),
+    params:
+        job_name="cc_snpsift_exclude-{chr}", log="cc_snpsift_exclude/{chr}.log", cpus="2", mem="30G", time="1-0",
+        wgs_gwas_concordance_threshold=WGS_GWAS_CONCORDANCE_THRESHOLD
+    shell:
+        """
+        {PYTHON} {BASE}/scripts/cc_snpsift_exclude.py {input.tsv} {input.vcf} {params.wgs_gwas_concordance_threshold} \
+          | sort --version-sort | uniq > {output.txt}
+
+        /bin/wc -l {output.txt}
+        """
+
+rule cc_teddy_children:
+    input:
+        bcf=join(WORK, "cc_filter/{chr}.bcf"),
+        samples=join(WORK, "cc_teddy_children_list/{chr}.txt")
+    output:
+        bcf=join(WORK, "cc_teddy_children/{chr}.bcf")
+    params:
+        job_name="cc_teddy_children-{chr}", log="cc_teddy_children/{chr}.log", cpus="2", mem="20G", time="1-0"
+    shell:
+        """
+        {BCFTOOLS} view --samples-file={input.samples} --output-type=b --output={output.bcf} {input.bcf}
+        {BCFTOOLS} index {output.bcf}
+        """
+
+rule cc_teddy_children_concat:
+    input:
+        bcfs=expand(join(WORK, "cc_teddy_children/{chr}.bcf"), chr=CHROMOSOMES)
+    output:
+        bcf=join(WORK, "cc_teddy_children_concat/all-chromosomes.bcf")
+    params:
+        job_name="cc_teddy_children_concat", log="cc_teddy_children_concat.log", cpus="2", mem="20G", time="7-0"
+    shell:
+        """
+        sort_filelist() {{
+          for f in {input.bcfs}; do echo $f; done | sort --version-sort
+        }}
+
+        sort_filelist
+
+        {BCFTOOLS} concat --file-list=<(sort_filelist) --output-type=b --output={output.bcf}
+        {BCFTOOLS} index {output.bcf}
+        """
+
+rule cc_teddy_children_list:
+    input:
+        bcf=join(WORK, "cc_filter/{chr}.bcf"),
+        teddy_children=TEDDY_CHILDREN,
+        decoder_ring=DECODER_RING
+    output:
+        txt=join(WORK, "cc_teddy_children_list/{chr}.txt")
+    params:
+        job_name="cc_teddy_children_list-{chr}", log="cc_teddy_children_list/{chr}.log", cpus="1", mem="10G", time="0-1"
+    shell:
+        """
+        get_samples() {{
+          {BCFTOOLS} query --list-samples {input.bcf}
+        }}
+
+        {PYTHON} {BASE}/scripts/teddy_children.py {input.teddy_children} {input.decoder_ring} <(get_samples) > {output.txt}
+        """
+
+rule combined:
+    """
+    Convert the indexed labdata files to BCF format.
+    - For immunochip, remove 9 parents which are present in exome so we have no merge conflicts later in the pipeline.
+    - If the global var TEST_REGIONS is set, we create a much smaller output file for quick iterative testing.
+    """
+    input:
+        vcf_gz=join(WORK, "combined_idx/{chip}/{chr}.vcf.gz"),
+        immuno_samples_exclude=join(BASE, "metadata/mask/MICH/immuno-exclude.txt"),
+    output:
+        bcf=join(WORK, "combined/{chip}/{chr}.bcf"),
+        csi=join(WORK, "combined/{chip}/{chr}.bcf.csi")
+    params:
+        job_name="combined-{chip}-{chr}", log="combined/{chip}/{chr}.log", cpus="2", mem="20G", time="1-0"
+    shell:
+        """
+        _bcftools_opts=""
+
+        if [[ '{wildcards.chip}' == 'immuno' ]]; then
+          _bcftools_opts="--samples-file=^{input.immuno_samples_exclude}"
+        fi
+
+        if [[ -n '{TEST_REGIONS}' ]]; then
+          _bcftools_opts="$_bcftools_opts --regions-file={TEST_REGIONS}"
+        fi
+
+        {BCFTOOLS} view --no-version --threads={params.cpus} $_bcftools_opts --output-type=b --output={output.bcf} {input.vcf_gz}
+        {BCFTOOLS} index --threads={params.cpus} {output.bcf}
+        """
+
+rule combined_idx:
+    """
+    The files from labdata (Imputed-Combined-TOPMed-TEDDYRef) are not indexed.
+    We symlink the input files (with the simpler names of immuno,exome,merged) and generate indexes for them.
+    """
+    input:
+        vcf_gz=lambda wildcards: join(INPUT_VCF_DIR[wildcards.chip], f"{wildcards.chr}.metaDose.vcf.gz")
+    output:
+        vcf_gz=join(WORK, "combined_idx/{chip}/{chr}.vcf.gz"),
+        csi=join(WORK, "combined_idx/{chip}/{chr}.vcf.gz.csi")
+    params:
+        job_name="combined_idx-{chip}-{chr}", log="combined_idx/{chip}/{chr}.log", cpus="2", mem="20G", time="1-0"
+    shell:
+        """
+        /bin/ln -s {input.vcf_gz} {output.vcf_gz}
+        {BCFTOOLS} index --threads={params.cpus} {output.vcf_gz}
+        """
+
+rule dbsnp_remap_refseq:
+    input:
+        dbsnp=DBSNP_VCF_GRCH38,
+        refseq_map=DBSNP_VCF_MAP_GRCH38
+    output:
+        vcf_gz=join(WORK, "dbsnp_remap_refseq/grch38/dbsnp.vcf.gz")
+    params:
+        job_name="dbsnp_remap_refseq-grch38", log="dbsnp_remap_refseq/grch38.log", cpus="2", mem="20G", time="1-0"
+    shell:
+        """
+        zcat {input.dbsnp} | {PYTHON} {BASE}/scripts/remap_dbsnp_vcf.py {input.refseq_map} | {BGZIP} > {output.vcf_gz}
+        {BCFTOOLS} index --threads={params.cpus} --tbi {output.vcf_gz}
+        """
+
+rule filter_maf_geno:
+    input:
+        prefix=join(WORK, "subjects_by_sex/{chip}/{subjects}/pgen/{sex}/{chr}")
+    output:
+        prefix=join(WORK, "filter_maf_geno/{chip}/{subjects}/{sex}/{chr}")
+    params:
+        job_name="filter_maf_geno-{chip}-{subjects}-{sex}-{chr}", log="filter_maf_geno/{chip}/{subjects}/{sex}/{chr}.log", cpus="2", mem="10G", time="1-0",
+        mem_mb="10000",
+    shell:
+        """
+        plink_args="--silent --threads {params.cpus} --memory {params.mem_mb}"
+
+        _variants() {{ for f in "$@"; do grep -v '^#' "$f" | cut -f3; done | sort --version-sort | uniq; }}
+
+        {PLINK20} $plink_args \
+          --pfile {input.prefix} \
+          --make-pgen \
+          --maf 0.0005 \
+          --max-maf 0.00099 \
+          --geno 0.01 \
+          --nonfounders \
+          --out {output.prefix}.1
+
+        {PLINK20} $plink_args \
+          --pfile {input.prefix} \
+          --make-pgen \
+          --maf 0.001 \
+          --nonfounders \
+          --out {output.prefix}.2a
+
+        {PLINK20} $plink_args \
+          --pfile {output.prefix}.2a \
+          --make-pgen \
+          --geno 0.40 \
+          --nonfounders \
+          --out {output.prefix}.2b
+
+        _variants {output.prefix}.1.pvar {output.prefix}.2b.pvar > {output.prefix}.extract
+
+        {PLINK20} $plink_args \
+          --pfile {input.prefix} \
+          --make-pgen \
+          --extract {output.prefix}.extract \
+          --out {output.prefix}
+
+        /bin/touch {output.prefix}
+        """
+
+rule filter_r2:
+    input:
+        bcf=join(WORK, "hds_util/{chip}/{chr}.bcf")
+    output:
+        bcf=join(WORK, "filter_r2/{chip}/{chr}.bcf"),
+        csi=join(WORK, "filter_r2/{chip}/{chr}.bcf.csi")
+    params:
+        job_name="filter_r2-{chip}-{chr}", log="filter_r2/{chip}/{chr}.log", cpus="2", mem="10G", time="7-0"
+    shell:
+        """
+        {BCFTOOLS} view --no-version --threads={params.cpus} --include 'R2>{R2_VALUE}' --output-type=b --output={output.bcf} {input.bcf}
+        {BCFTOOLS} index --threads={params.cpus} {output.bcf}
+        """
+
+rule filter_regions:
+    """
+    This rule only modifies the immunochip. For the other chips create symlinks ensuring a uniform pipeline flow.
+    """
+    input:
+        regions_txt=join(BASE, "metadata/ichip_regions_gr38.txt"),
+        bcf=join(WORK, "filter_snps_to_keep/{chip}/{sex}/{chr}.bcf")
+    output:
+        bcf=join(WORK, "filter_regions/{chip}/{sex}/{chr}.bcf"),
+        csi=join(WORK, "filter_regions/{chip}/{sex}/{chr}.bcf.csi")
+    params:
+        job_name="filter_regions-{chip}-{sex}-{chr}", log="filter_regions/{chip}/{sex}/{chr}.log", cpus="2", mem="20G", time="1-0"
+    shell:
+        """
+        if [[ '{wildcards.chip}' == 'immuno' ]]; then
+
+          {BCFTOOLS} view --no-version --threads={params.cpus} \
+            --regions-file <(tail -n+2 {input.regions_txt} | cut -f2-4) --output-type=b --output={output.bcf} {input.bcf}
+
+          {BCFTOOLS} index --threads={params.cpus} {output.bcf}
+        else
+          /bin/ln -s {input.bcf} {output.bcf}
+          /bin/ln -s {input.bcf}.csi {output.bcf}.csi
+        fi
+        """
+
+rule filter_snps_to_keep:
+    """
+    For chrX, filter the hds_util input because it occurs earlier in the pipeline before we split into separate female/male files.
+    """
+    input:
+        prefix_samples_file=join(WORK, "subjects_by_sex/{chip}/all/pgen/{sex}/{chr}"),
+        snps_to_keep_txt=join(WORK, "snps_to_keep", QC_CHIP, "{sex}/{chr}.txt"),
+        bcf=join(WORK, "hds_util/{chip}/{chr}.bcf")
+    output:
+        bcf=join(WORK, "filter_snps_to_keep/{chip}/{sex}/{chr}.bcf"),
+        csi=join(WORK, "filter_snps_to_keep/{chip}/{sex}/{chr}.bcf.csi")
+    params:
+        job_name="filter_snps_to_keep-{chip}-{sex}-{chr}", log="filter_snps_to_keep/{chip}/{sex}/{chr}.log", cpus="2", mem="20G", time="3-0"
+    shell:
+        """
+        if [[ "{wildcards.sex}" == "female" || "{wildcards.sex}" = "male" ]]; then
+            tail -n+2 {input.prefix_samples_file}.psam | cut -f1,2 | tr '\t' '_' > {output.bcf}.samples.txt
+            _bcftools_opts="--samples-file {output.bcf}.samples.txt"
+        else
+            _bcftools_opts=""
+        fi
+
+        {BCFTOOLS} view --no-version --threads={params.cpus} \
+          $_bcftools_opts \
+          --include ID==@{input.snps_to_keep_txt} \
+          --output-type=z --output={output.bcf} {input.bcf}
+
+        {BCFTOOLS} index --threads={params.cpus} {output.bcf}
+        """
+
+rule hds_util:
+    input:
+        bcf=join(WORK, "combined/{chip}/{chr}.bcf")
+    output:
+        bcf=join(WORK, "hds_util/{chip}/{chr}.bcf"),
+        csi=join(WORK, "hds_util/{chip}/{chr}.bcf.csi")
+    params:
+        job_name="hds_util-{chip}-{chr}", log="hds_util/{chip}/{chr}.log", cpus="1", mem="10G", time="21-0"
+    shell:
+        """
+        {BCFTOOLS} view --no-version --threads={params.cpus} {input.bcf} \
+          | {HDS_UTIL} --format=GT,GP,DS,HDS,SD --output-format=bcf --output={output.bcf}
+
+        {BCFTOOLS} index --threads={params.cpus} {output.bcf}
+        """
+
+rule hwe:
+    input:
+        prefix=join(WORK, "filter_maf_geno/{chip}/{subjects}/{sex}/{chr}")
+    output:
+        prefix=join(WORK, "hwe/{chip}/{subjects}/{sex}/{chr}")
+    params:
+        job_name="hwe-{chip}-{subjects}-{sex}-{chr}", log="hwe/{chip}/{subjects}/{sex}/{chr}.log", cpus="2", mem="10G", time="1-0",
+        mem_mb="10000",
+        hwe=lambda wildcards: HWE[wildcards.subjects]["common"]
+    shell:
+        """
+        plink_args="--silent --threads {params.cpus} --memory {params.mem_mb}"
+
+        {PLINK20} $plink_args \
+          --pfile {input.prefix} \
+          --make-pgen \
+          --nonfounders \
+          --hwe {params.hwe} \
+          --out {output.prefix}
+
+        /bin/touch {output.prefix}
+        """
+
+rule hwe_hla:
+    """
+    HLA GRCh38 - https://www.ncbi.nlm.nih.gov/grc/human/regions/MHC - chr6:28510120-33480577
+    """
+    input:
+        prefix=join(WORK, "filter_maf_geno/{chip}/{subjects}/{sex}/chr6")
+    output:
+        prefix=join(WORK, "hwe_hla/{chip}/{subjects}/{sex}/chr6")
+    params:
+        job_name="hwe_hla-{chip}-{subjects}-{sex}", log="hwe_hla/{chip}/{subjects}/{sex}.log", cpus="2", mem="10G", time="1-0",
+        mem_mb="10000",
+        hla_start="28510120", hla_end="33480577",
+        hwe_hla_pre=lambda wildcards: HWE[wildcards.subjects]["hla_pre"],
+        hwe_hla=lambda wildcards: HWE[wildcards.subjects]["hla"],
+        hwe_hla_post=lambda wildcards: HWE[wildcards.subjects]["hla_post"]
+    shell:
+        """
+        plink_args="--silent --threads {params.cpus} --memory {params.mem_mb}"
+
+        _variants() {{ for f in "$@"; do grep -v '^#' "$f" | cut -f3; done | sort --version-sort | uniq; }}
+
+        {PLINK20} $plink_args \
+            --pfile {input.prefix} \
+            --make-pgen \
+            --nonfounders \
+            --chr 6 \
+            --to-bp {params.hla_start} \
+            --hwe {params.hwe_hla_pre} \
+            --out {output.prefix}.hla_pre
+
+        {PLINK20} $plink_args \
+            --pfile {input.prefix} \
+            --make-pgen \
+            --nonfounders \
+            --chr 6 \
+            --from-bp {params.hla_start} \
+            --to-bp {params.hla_end} \
+            --hwe {params.hwe_hla} \
+            --out {output.prefix}.hla
+
+        {PLINK20} $plink_args \
+            --pfile {input.prefix} \
+            --make-pgen \
+            --nonfounders \
+            --chr 6 \
+            --from-bp {params.hla_end} \
+            --hwe {params.hwe_hla_post} \
+            --out {output.prefix}.hla_post
+
+        _variants {output.prefix}.hla_pre.pvar \
+                  {output.prefix}.hla.pvar \
+                  {output.prefix}.hla_post.pvar > {output.prefix}.extract
+
+        {PLINK20} $plink_args \
+            --pfile {input.prefix} \
+            --make-pgen \
+            --extract {output.prefix}.extract \
+            --out {output.prefix}
+
+        /bin/touch {output.prefix}
+        """
+
+rule hwe_sex:
+    """
+    How to Include Chromosome X in Your Genome‐Wide - https://onlinelibrary.wiley.com/doi/full/10.1002/gepi.21782
+    """
+    input:
+        prefix=join(WORK, "filter_maf_geno/{chip}/{subjects}/{sex}/chrX")
+    output:
+        prefix=join(WORK, "hwe_sex/{chip}/{subjects}/{sex}/chrX")
+    params:
+        job_name="hwe_sex-{chip}-{subjects}-{sex}", log="hwe_sex/{chip}/{subjects}/{sex}.log", cpus="2", mem="10G", time="1-0",
+        mem_mb="10000",
+        hwe=lambda wildcards: HWE[wildcards.subjects]["sex"]
+    shell:
+        """
+        plink_args="--silent --threads {params.cpus} --memory {params.mem_mb}"
+
+        {PLINK20} $plink_args \
+            --pfile {input.prefix} \
+            --make-pgen \
+            --nonfounders \
+            --chr 23 \
+            --hwe {params.hwe} \
+            --out {output.prefix}
+
+        /bin/touch {output.prefix}
+        """
+
+rule ic:
+    input:
+        legend_gz=join(WORK, "ic_legend/{chr}.gz"),
+        info=lambda wildcards: join(INPUT_TOPMED_IC[wildcards.chip], f"{wildcards.chr}.info.gz")
+    output:
+        prefix=join(WORK, "ic/{chip}/{chr}")
+    params:
+        job_name="ic-{chip}-{chr}", log="ic/{chip}/{chr}.log", cpus="4", mem="30G", time="1-0",
+        work_dir=join(WORK, "ic/{chip}/{chr}.d")
+    shell:
+        """
+        /bin/mkdir -p {params.work_dir} && cd {params.work_dir}
+
+        /bin/ln -s {input.info} .
+
+        {IC} -d . -r {input.legend_gz} -g -p ALL -o out
+
+        /bin/mv out/STUDY.* out/STUDY
+
+        /bin/touch {output.prefix}
+        """
+
+rule ic_legend:
+    input:
+        vcf_gz=join(IC_LEGEND_G1K_DIR, "ALL.{chr}.shapeit2_integrated_snvindels_v2a_27022019.GRCh38.phased.vcf.gz")
+    output:
+        legend_gz=join(WORK, "ic_legend/{chr}.gz")
+    params:
+        job_name="ic_legend-{chr}", log="ic_legend/{chr}.log", cpus="2", mem="20G", time="1-0"
+    shell:
+      """
+      {{
+        echo $'id\tchr\tposition\ta0\ta1\tTYPE\tAFR\tAMR\tEAS\tEUR\tSAS\tALL'
+
+        {BCFTOOLS} query {input.vcf_gz} --format 'chr%CHROM\t%ID\t%POS\t%REF\t%ALT\t%AC\t%AN\n' \
+          | awk '{{ print $1":"$3":"$4":"$5"\t"$1"\t"$3"\t"$4"\t"$5"\tINDEL\t"$6/$7"\t0\t0\t0\t0\t"$6/$7 }}'
+
+      }} | gzip > {output.legend_gz}
+      """
+
+rule king:
+    input:
+        prefix=join(WORK, "subjects_by_sex/{chip}/{subjects}/bed/{sex}/{chr}")
+    output:
+        prefix=join(WORK, "king/{chip}/{subjects}/{sex}/{chr}")
+    params:
+        job_name="king-{chip}-{subjects}-{sex}-{chr}", log="king/{chip}/{subjects}/{sex}/{chr}.log", cpus="4", mem="30G", time="1-0"
+    shell:
+        """
+        {KING} -b {input.prefix}.bed \
+            --cpus {params.cpus} \
+            --autoQC \
+            --prefix {output.prefix}.autoQC
+
+        /bin/touch {output.prefix}
+        """
+
+rule mend_err_family:
+    input:
+        bcf=join(WORK, "merge_chips_filter_mendel_combine_sex/{chr}.bcf")
+    output:
+        bcf=join(WORK, "mend_err_family/{chr}/{family}.bcf"),
+        csi=join(WORK, "mend_err_family/{chr}/{family}.bcf.csi")
+    params:
+        job_name="mend_err_family-{chr}-{family}", log="mend_err_family/{chr}/{family}.log", cpus="1", mem="10G", time="1-0",
+        children=lambda wildcards: " ".join(MEND_ERR_FAMILY_DB[wildcards.family]),
+        work=join(WORK, "mend_err_family/{chr}/{family}")
+    shell:
+        """
+        work={params.work} && /bin/mkdir -p $work
+
+        {BCFTOOLS} view --no-version --samples={wildcards.family} --output-type=b --output=$work/parents.bcf {input.bcf}
+        {BCFTOOLS} index $work/parents.bcf
+
+        for child in {params.children}; do
+          {BCFTOOLS} view --no-version --samples={wildcards.family},$child {input.bcf} \
+            | {BCFTOOLS} +mendelian --trio={wildcards.family},$child --mode=d \
+            | {BCFTOOLS} view --no-version --samples=^{wildcards.family} --output-type=b --output=$work/child.$child.bcf
+
+           {BCFTOOLS} index $work/child.$child.bcf
+        done
+
+        {BCFTOOLS} merge --output-type=b --output=$work/all.bcf \
+          $work/parents.bcf \
+          $(for child in {params.children}; do echo $work/child.$child.bcf; done)
+
+        {{
+          {BCFTOOLS} view --no-version --header-only $work/all.bcf
+
+          {BCFTOOLS} view --no-version --genotype=miss $work/all.bcf \
+            | {BCFTOOLS} query --format='%CHROM\t%POS\t%ID\t%REF\t%ALT\t%QUAL\t%FILTER\t%INFO\tGT:DS:HDS:GP:SD\t[./.:.:.:.:.\t]\n'
+
+          {BCFTOOLS} view --no-version --no-header --genotype=^miss $work/all.bcf
+
+        }} | {BCFTOOLS} sort --temp-dir={output.bcf}.tmp --output-type=b --output={output.bcf}
+
+        /bin/rm -rf $work
+
+        {BCFTOOLS} index {output.bcf}
+        """
+
+rule mend_err_merge:
+    input:
+        flist=join(WORK, "mend_err_merge_list/{chr}/flist.txt")
+    output:
+        bcf=join(WORK, "mend_err_merge/{chr}.bcf"),
+        csi=join(WORK, "mend_err_merge/{chr}.bcf.csi")
+    params:
+        job_name="mend_err_merge_list-{chr}", log="mend_err_merge_list/{chr}.log", cpus="8", mem="120G", time="7-0"
+    shell:
+        """
+        {BCFTOOLS} merge --no-version --threads={params.cpus} --file-list={input.flist} --output-type=b --output={output.bcf}
+        {BCFTOOLS} index {output.bcf}
+        """
+
+rule mend_err_merge_list:
+    input:
+        family_bcfs=expand(join(WORK, "mend_err_family/{{chr}}/{family}.bcf"), family=MEND_ERR_FAMILY_DB),
+        single_bcf=join(WORK, "mend_err_single/{chr}/single.bcf")
+    output:
+        flist=join(WORK, "mend_err_merge_list/{chr}/flist.txt")
+    params:
+        job_name="mend_err_merge_list-{chr}", log="mend_err_merge_list/{chr}.log", cpus="1", mem="10G", time="0-8"
+    run:
+        with open(output.flist, "w") as f:
+            for family_bcf in input.family_bcfs:
+                print(family_bcf, file=f)
+
+            print(input.single_bcf, file=f)
+
+rule mend_err_single:
+    input:
+        bcf=join(WORK, "merge_chips_filter_mendel_combine_sex/{chr}.bcf"),
+        trios_csv=join(BASE, "metadata/mask/MICH/teddy_gwas_trios.csv")
+    output:
+        bcf=join(WORK, "mend_err_single/{chr}/single.bcf")
+    params:
+        job_name="mend_err_single-{chr}", log="mend_err_single/{chr}.log", cpus="1", mem="10G", time="1-0"
+    shell:
+        """
+        comm -13 \
+          <(tr ',' '\n' < {input.trios_csv} | sort | uniq) \
+          <({BCFTOOLS} query --list-samples {input.bcf} | sort | uniq) \
+        > {output.bcf}.samples
+
+        {BCFTOOLS} view --no-version --samples-file={output.bcf}.samples --output-type=b --output={output.bcf} {input.bcf}
+        {BCFTOOLS} index {output.bcf}
+        """
+
+rule merge_chips:
+    input:
+        bcfs=expand(join(WORK, "filter_regions/{chip}/{{sex}}/{{chr}}.bcf"), chip=CHIPS)
+    output:
+        bcf=join(WORK, "merge_chips/{sex}/{chr}.bcf"),
+        csi=join(WORK, "merge_chips/{sex}/{chr}.bcf.csi")
+    params:
+        job_name="merge_chips-{chr}-{sex}", log="merge_chips/{chr}/{sex}.log", cpus="2", mem="20G", time="7-0"
+    shell:
+        """
+        {BCFTOOLS} merge --no-version --threads={params.cpus} \
+          --missing-to-ref --output-type=b --output={output.bcf} {input.bcfs}
+
+        {BCFTOOLS} index {output.bcf}
+        """
+
+rule merge_chips_filter_mendel:
+    """
+    Filter only SNP Ids that passed the mendel step and then use bcftools annotate re-write the snp ids to . so SNPSift annotation
+    will replace them completely instead of appending ";<rsid>
+    """
+    input:
+        keep_txt=join(WORK, "merge_chips_mendel_keep/{chr}.keep.txt"),
+        bcf=join(WORK, "merge_chips/{sex}/{chr}.bcf")
+    output:
+        bcf=join(WORK, "merge_chips_filter_mendel/{sex}/{chr}.bcf"),
+        csi=join(WORK, "merge_chips_filter_mendel/{sex}/{chr}.bcf.csi")
+    params:
+        job_name="merge_chips_filter_mendel-{sex}-{chr}", log="merge_chips_filter_mendel/{sex}/{chr}.log", cpus="2", mem="20G", time="7-0"
+    shell:
+        """
+        {BCFTOOLS} view --threads={params.cpus} --include ID==@{input.keep_txt} --output-type=u {input.bcf} \
+          | {BCFTOOLS} annotate --threads={params.cpus} --set-id . --output-type=b --output={output.bcf}
+
+        {BCFTOOLS} index --threads={params.cpus} {output.bcf}
+        """
+
+def merge_chips_filter_mendel_combine_sex_input(wildcards):
+    if wildcards.chr == "chrX":
+        sexes = ["female", "male"]
+    else:
+        sexes = ["both"]
+
+    return [join(WORK, "merge_chips_filter_mendel", sex, wildcards.chr + ".bcf") for sex in sexes]
+
+rule merge_chips_filter_mendel_combine_sex:
+    input:
+        bcfs=merge_chips_filter_mendel_combine_sex_input
+    output:
+        bcf=join(WORK, "merge_chips_filter_mendel_combine_sex/{chr}.bcf"),
+        csi=join(WORK, "merge_chips_filter_mendel_combine_sex/{chr}.bcf.csi")
+    params:
+        job_name="merge_chips_filter_mendel_combine_sex-{chr}", log="merge_chips_filter_mendel_combine_sex/{chr}.log", cpus="2", mem="10G", time="1-0"
+    shell:
+        """
+        if [[ '{wildcards.chr}' == 'chrX' ]]; then
+          {BCFTOOLS} merge --threads={params.cpus} --missing-to-ref --output-type=b --output={output.bcf} {input.bcfs}
+          {BCFTOOLS} index --threads={params.cpus} {output.bcf}
+        else
+          /bin/ln -s {input.bcfs[0]} {output.bcf}
+          /bin/ln -s {input.bcfs[0]}.csi {output.bcf}.csi
+        fi
+        """
+
+rule merge_chips_mendel:
+    input:
+        prefix=join(WORK, "merge_chips_to_plink/bed/{sex}/{chr}"),
+        prefix_fam=join(WORK, "merge_chips_update_samples/bed/{sex}/{chr}")
+    output:
+        prefix=join(WORK, "merge_chips_mendel/{sex}/{chr}")
+    params:
+        job_name="merge_chips_mendel-{sex}-{chr}", log="merge_chips_mendel/{sex}/{chr}.log", cpus="2", mem="20G", time="1-0",
+        mem_mb="20000"
+    shell:
+        """
+        plink_args="--silent --threads {params.cpus} --memory {params.mem_mb}"
+        plink_inputs="--bed {input.prefix}.bed --bim {input.prefix}.bim --fam {input.prefix_fam}"
+
+        {PLINK19} $plink_args \
+          $plink_inputs \
+          --mendel \
+          --out {output.prefix}.1
+
+        {PLINK19} $plink_args \
+          $plink_inputs \
+          --mendel --mendel-duos \
+          --out {output.prefix}.2
+
+        {PLINK19} $plink_args \
+          $plink_inputs \
+          --make-bed \
+          --me 1 0.25 'var-first' \
+          --mendel-duos \
+          --set-me-missing \
+          --out {output.prefix}.3
+
+        {PLINK19} $plink_args \
+          --bfile {output.prefix}.3 \
+          --make-bed \
+          --set-hh-missing \
+          --out {output.prefix}.4
+
+        {PLINK19} $plink_args \
+          --bfile {output.prefix}.4 \
+          --make-bed \
+          --geno 0.30 \
+          --out {output.prefix}
+
+        /bin/touch {output.prefix}
+        """
+
+def merge_chips_mendel_keep_input(wildcards):
+    if wildcards.chr == "chrX":
+        sexes = ["male", "female"]
+    else:
+        sexes = ["both"]
+
+    return [join(WORK, "merge_chips_mendel", sex, wildcards.chr) for sex in sexes]
+
+rule merge_chips_mendel_keep:
+    """
+    Create keep list from mendel analysis - for chrX we perform a union of male/female SNPs that passed
+    """
+    input:
+        prefixes=merge_chips_mendel_keep_input
+    output:
+        keep_txt=join(WORK, "merge_chips_mendel_keep/{chr}.keep.txt")
+    params:
+        job_name="merge_chips_mendel_keep-{chr}", log="merge_chips_mendel_keep/{chr}.log", cpus="1", mem="10G", time="0-4"
+    shell:
+        """
+        for prefix in {input.prefixes}; do
+          /bin/cut -f2 $prefix.bim
+        done | sort --version-sort | uniq > {output.keep_txt}
+        """
+
+rule merge_chips_to_plink:
+    input:
+        bcf=join(WORK, "merge_chips/{sex}/{chr}.bcf")
+    output:
+        prefix=join(WORK, "merge_chips_to_plink/{format}/{sex}/{chr}")
+    params:
+        job_name="merge_chips_to_plink-{format}-{sex}-{chr}", log="merge_chips_to_plink/{format}/{sex}/{chr}.log", cpus="2", mem="10G",
+        mem_mb="10000"
+    shell:
+        """
+        plink_args="--silent --threads {params.cpus} --memory {params.mem_mb}"
+
+        case {wildcards.format} in
+          bed)
+            {PLINK20} $plink_args \
+              --bcf {input.bcf} 'dosage=HDS' \
+              --make-bed \
+              --output-chr 26 \
+              --out {output.prefix}
+          ;;
+
+          pgen)
+            {PLINK20} $plink_args \
+              --bcf {input.bcf} 'dosage=HDS' \
+              --make-pgen \
+              psam-cols='fid,parents,sex,pheno1' \
+              --output-chr 26 \
+              --out {output.prefix}
+          ;;
+
+          *) exit 1 ;;
+        esac
+
+        /bin/touch {output.prefix}
+        """
+
+rule merge_chips_update_samples:
+    input:
+        fams_orig=FAMS_ORIG,
+        prefix=join(WORK, "merge_chips_to_plink/{format}/{sex}/{chr}")
+    output:
+        sample_file=join(WORK, "merge_chips_update_samples/{format}/{sex}/{chr}")
+    params:
+        job_name="merge_chips_update_samples-{format}-{sex}-{chr}", log="merge_chips_update_samples/{format}/{sex}/{chr}.log", cpus="1", mem="10G", time="0-1"
+    run:
+        update_samples(input.prefix, input.fams_orig, output.sample_file, wildcards.format)
+
+def snpsift_annotate_input(wildcards):
+    if wildcards.method == "gwas":
+        return join(WORK, "mend_err_merge", wildcards.chr + ".bcf")
+
+    elif wildcards.method == "wgs":
+        return join(WORK, "cc_samples_rename", "wgs", wildcards.chr + ".bcf")
+    else:
+        sys.exit(1)
+
+rule snpsift_annotate:
+    """
+    Annotate SNPs with SnpSift (https://pcingola.github.io/SnpEff/).
+    - Before SnpSift
+      - Convert input bcf to vcf.gz (snpsift requirement)
+      - Zero out all SNPs to "." (SnpSift annotates missing SNPs to weird notation otherwise)
+      - Index the vcf.gz using tabix format (--tbi)
+    - After SnpSift
+      - Rewrite any missing SNPs (".") to the synthetic id <chr>:<pos>:<ref>:<alt>
+
+    Note: {method} wildcard is either gwas or wgs.
+    """
+    input:
+        bcf=snpsift_annotate_input,
+        dbsnp_vcf_gz=join(WORK, "dbsnp_remap_refseq/grch38/dbsnp.vcf.gz"),
+    output:
+        bcf=join(WORK, "snpsift_annotate/{method}/{chr}.bcf"),
+        csi=join(WORK, "snpsift_annotate/{method}/{chr}.bcf.csi"),
+        vcf_gz=temp(join(WORK, "snpsift_annotate/{method}/{chr}.vcf.gz")),
+        tbi=temp(join(WORK, "snpsift_annotate/{method}/{chr}.vcf.gz.tbi"))
+    params:
+        job_name="snpsift_annotate-{method}-{chr}", log="snpsift_annotate/{method}/{chr}.log", time="3-0", cpus="4", mem="30G"
+    shell:
+        """
+        {BCFTOOLS} annotate --no-version --threads={params.cpus} \
+          --set-id . --output-type=z --output={output.vcf_gz} {input.bcf}
+
+        {BCFTOOLS} index --threads={params.cpus} --tbi {output.vcf_gz}
+
+        {SNPSIFT} annotate -id {input.dbsnp_vcf_gz} {output.vcf_gz} \
+          | {BCFTOOLS} annotate --no-version --threads={params.cpus} \
+              --set-id +'%CHROM:%POS:%REF:%ALT' --output-type=b --output={output.bcf}
+
+        {BCFTOOLS} index --threads={params.cpus} {output.bcf}
+        """
+
+def snps_to_keep_input_hwe_prefixes(wildcards):
+    if wildcards.chr == "chr6": input_dir = "hwe_hla"
+    elif wildcards.chr == "chrX": input_dir = "hwe_sex"
+    else: input_dir = "hwe"
+
+    return expand(join(WORK, input_dir, wildcards.chip, "{subjects}", wildcards.sex, wildcards.chr), subjects=SUBJECTS)
+
+def snps_to_keep_input_king_prefixes(wildcards):
+    if wildcards.chr != "chrX":
+        return [join(WORK, "king", wildcards.chip, subjects, wildcards.sex, wildcards.chr) for subjects in SUBJECTS]
+    else:
+        return []
+
+rule snps_to_keep:
+    input:
+        king_prefixes=snps_to_keep_input_king_prefixes,
+        hwe_prefixes=snps_to_keep_input_hwe_prefixes
+    output:
+        snplist=join(WORK, "snps_to_keep/{chip}/{sex}/{chr}.txt")
+    params:
+        job_name="snps_to_keep-{chip}-{sex}-{chr}", log="snps_to_keep/{chip}/{sex}/{chr}.log"
+    run:
+        snps = [set() for _ in input.hwe_prefixes]
+        snps_to_remove = set()
+
+        for prefix in input.king_prefixes:
+            with open(prefix + ".autoQC_autoQC_snptoberemoved.txt") as f:
+                next(f)
+                for line in f:
+                    snp = line.rstrip("\n").split("\t")[0]
+                    snps_to_remove.add(snp)
+
+        for i, prefix in enumerate(input.hwe_prefixes):
+            with open(prefix + ".pvar") as f:
+                for line in f:
+                    if line.startswith("#"):
+                        continue
+                    snp = line.rstrip("\n").split("\t")[2]
+                    snps[i].add(snp)
+
+        with open(output.snplist, "w") as f:
+            for snp in sorted(snps[0].intersection(*snps[1:])):
+                if snp not in snps_to_remove:
+                    print(snp, file=f)
+
+rule subjects:
+    """
+    For wildcards.subjects == 'all':
+       Copy the files.
+
+    For wildcards.subjects == 'eur':
+      Keep only non-related, European controls.
+      The keep_file only contains the IID so we need to use this to create the 2-column FID/IID keep file required by plink.
+    """
+    input:
+        prefix=join(WORK, "vcf_to_plink/{chip}/{format}/{chr}"),
+        sample_file=join(WORK, "update_samples/{chip}/{format}/{chr}"),
+        eur_keep_file=EUR_CONTROLS
+    output:
+        prefix=join(WORK, "subjects/{chip}/{subjects}/{format}/{chr}")
+    params:
+        job_name="subjects-{chip}-{subjects}-{format}-{chr}", log="subjects/{chip}/{subjects}/{format}/{chr}.log", cpus="1", mem="10G", time="0-1",
+        mem_mb="10000"
+    shell:
+        """
+        plink_args="--silent --threads {params.cpus} --memory {params.mem_mb}"
+
+        case {wildcards.subjects} in
+          all)
+            case {wildcards.format} in
+              bed)
+                /bin/cp {input.prefix}.bed {output.prefix}.bed
+                /bin/cp {input.prefix}.bim {output.prefix}.bim
+                /bin/cp {input.sample_file} {output.prefix}.fam
+              ;;
+              pgen)
+                /bin/cp {input.prefix}.pgen {output.prefix}.pgen
+                /bin/cp {input.prefix}.pvar {output.prefix}.pvar
+                /bin/cp {input.sample_file} {output.prefix}.psam
+              ;;
+              *)
+                exit 1
+              ;;
+            esac
+          ;;
+
+          eur)
+            case {wildcards.format} in
+              bed) format_args="--make-bed --bed {input.prefix}.bed --bim {input.prefix}.bim --fam {input.sample_file}" ;;
+              pgen) format_args="--make-pgen --pgen {input.prefix}.pgen --pvar {input.prefix}.pvar --psam {input.sample_file}" ;;
+              *) exit 1 ;;
+            esac
+
+            for iid in $(tail -n +2 {input.eur_keep_file} | cut -f1); do
+              awk --assign iid=$iid '{{ if ($2 == iid) print $1 "\t" $2 }}' {input.sample_file}
+            done > {output.prefix}.keep
+
+            {PLINK20} $plink_args \
+              $format_args \
+              --keep {output.prefix}.keep \
+              --out {output.prefix}
+          ;;
+        esac
+
+        /bin/touch {output.prefix}
+        """
+
+rule subjects_by_sex:
+    input:
+        prefix=join(WORK, "subjects/{chip}/{subjects}/{format}/{chr}")
+    output:
+        prefix=join(WORK, "subjects_by_sex/{chip}/{subjects}/{format}/{sex}/{chr}")
+    params:
+        job_name="subjects_by_sex-{chip}-{subjects}-{format}-{sex}-{chr}", log="subjects_by_sex/{chip}/{subjects}/{format}/{sex}/{chr}.log", cpus="2", mem="10G", time="0-4",
+        mem_mb="10000"
+    shell:
+        """
+        plink_args="--silent --threads {params.cpus} --memory {params.mem_mb}"
+
+        case {wildcards.sex} in
+          female) filter_opt="--keep-females" ;;
+          male) filter_opt="--keep-males" ;;
+          both) filter_opt="" ;;
+          *) exit 1 ;;
+        esac
+
+        case {wildcards.format} in
+          bed) format_opt="--bfile {input.prefix} --make-bed"  ;;
+          pgen) format_opt="--pfile {input.prefix} --make-pgen" ;;
+          *) exit 1 ;;
+        esac
+
+        {PLINK20} $plink_args \
+          $format_opt \
+          $filter_opt \
+          --out {output.prefix}
+
+        touch {output.prefix}
+        """
+
+rule update_samples:
+    input:
+        fams_orig=FAMS_ORIG,
+        prefix=join(WORK, "vcf_to_plink/{chip}/{format}/{chr}")
+    output:
+        sample_file=join(WORK, "update_samples/{chip}/{format}/{chr}")
+    params:
+        job_name="update_samples-{chip}-{format}-{chr}", log="update_samples/{chip}/{format}/{chr}.log", cpus="1", mem="10G", time="0-1"
+    run:
+        update_samples(input.prefix, input.fams_orig, output.sample_file, wildcards.format)
+
+rule vcf_to_plink:
+    """
+    We use plink option --output-chr 26 to convert X to 23, needed for compatibility with king and xwas
+    """
+    input:
+        bcf=join(WORK, "filter_r2/{chip}/{chr}.bcf")
+    output:
+        prefix=join(WORK, "vcf_to_plink/{chip}/{format}/{chr}")
+    params:
+        job_name="vcf_to_plink-{chip}-{format}-{chr}", log="vcf_to_plink/{chip}/{format}/{chr}.log", cpus="4", mem="30G", time="1-0", mem_mb="30000"
+    shell:
+        """
+        plink_args="--silent --threads {params.cpus} --memory {params.mem_mb}"
+
+        case {wildcards.format} in
+          bed)
+            {PLINK20} $plink_args \
+              --bcf {input.bcf} 'dosage=HDS' \
+              --make-bed \
+              --output-chr 26 \
+              --out {output.prefix}
+          ;;
+
+          pgen)
+            {PLINK20} $plink_args \
+              --bcf {input.bcf} 'dosage=HDS' \
+              --make-pgen \
+              psam-cols='fid,parents,sex,pheno1' \
+              --output-chr 26 \
+              --out {output.prefix}
+          ;;
+
+          *) exit 1 ;;
+        esac
+
+        /bin/touch {output.prefix}
+        """
+
+# vim: filetype=snakemake tabstop=4 shiftwidth=4 softtabstop=4 expandtab
