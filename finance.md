@@ -120,7 +120,6 @@ Then, in addition, you can also open:
 ### 2022
 
 #### Single
-
 ```
 Standard Deduction
          12,950 ( 13 K)
@@ -136,18 +135,29 @@ Long-Term Capital Gains (> 1 Year)
   15% / 459,750 (460 K)
 ```
 
-Notes:
-- Even if you go 1 dollar over - all long-term capital gains taxed at 15% (non-progressive)
+#### Married (Filing Jointly)
+```
+Standard Deduction
+         25,900 ( 25 K)
 
-#### Married Filing Jointly
+Brackets
+  10% /  20,550 ( 20 K)
+  12% /  83,550 ( 84 K)
+  22% / 178,150 (180 K)
+  24% / 340,100 (340 K)
+
+Long-Term Capital Gains (> 1 Year)
+   0% /  83,350
+  15% / 517,200
+```
 
 #### Retirement Contribution Limits
 
-- Roth IRA
-  - 6,000 (+1,000 if 50 or older)
-    - Single: 129,000 to 144,000 (Phase-out)
-    - Married/Jointly: 204,000 to 214,000 (Phase-out)
-- 403b
+- 403b/401k
   - 20,500 (+6500 if 50 or older)
 - 457
   - 20,500 (+6500 if 50 or older)
+- Roth IRA 6,000 (+1,000 if 50 or older)
+  - Notes:
+    - Single: Phase-out eligibility from 129,000 to 144,000
+    - Married/Jointly: Phase-out eligibility from 204,000 to 214,000
