@@ -20,13 +20,21 @@ Videos
 
 ## USF Retirement
 
+For your main retirement, you either choose:
+- SUSORP
+- FRS
+
+Then, in addition, you can also open:
+- Voluntary 403b
+- Voluntary 457
+
 ### SUSORP (State University System Optional Retirement Plan)
 
 - Account Breakdown
-  - 401A
-    - 5.14% - Employer Funded Contribution (401A)
-    - 3.00% - Employee Mandatory Contribution (401A)
-  - 403B
+  - 401a
+    - 5.14% - Employer Funded Contribution
+    - 3.00% - Employee Mandatory Contribution
+  - 403b
     - 5.14% - Up-to Employee Voluntary Contribution
     - Notes:
       - Contributions to 403b are applied to 20,500.00 403b contribution limit for 2022
@@ -43,6 +51,20 @@ Videos
     - Annual Fee: 30.00 USD
   - Equitable
     - Annual Fee: 55.00 USD
+
+### FRS (Investment Plan)
+
+- Account Breakdown
+  - 401a
+    - 6.3 % Employer Funded Contribution (Was 3.3% prior to 2022)
+    - 3.0 % Employee Mandatory Contribution
+  - Providers
+    - FRS (only)
+      - Annual Fee: 0.00 USD (while active)
+      - Low-Cost Funds (3 Fund Portfolio)
+        - FRS US Stock Market Index Fund (120) (2 bps) [BlackRock Russell 3000 Index]
+        - FRS Foreign Stock Index Fund (200) (3 bps) [BlackRock MSCI ACWI EX US IMI NR]
+        - FRS U.S.Bond Enhanced Index Fund (80) (5 bps) [BlackRock Bloomberg U.S. Aggregate Bond]
 
 ### Voluntary 403b (May be opened in addition to SUSORP/FRS)
 
@@ -108,7 +130,7 @@ Retirement
   - 6,000 (+1,000 if 50 or older)
     - Single: 129,000 to 144,000 (Phase-out)
     - Married(Jointly): 204,000 to 214,000 (Phase-out)
-- 403B
+- 403b
   - 20,500 (+6500 if 50 or older)
 - 457
   - 20,500 (+6500 if 50 or older)
