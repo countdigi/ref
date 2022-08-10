@@ -45,6 +45,8 @@ Videos
 
 ### Voluntary 403b (May be opened in addition to SUSORP/FRS)
 
+- Contribution Limit:
+  -  For 2022: 20,500 (minus contributions made in 403b portion of SUSORP) (+6500 catch-up [27,000] if 50 or older)
 - Providers
     - TIAA
       - Annual Fee: 4.4 bp
@@ -67,6 +69,8 @@ Videos
 
 ### Voluntary 457
 
+- Contribution Limit:
+  -  For 2022: 20,500 (+6500 catch-up [27,000] if 50 or older)
 - Providers
   - Voya
     - Annual Fee: 6 bp
