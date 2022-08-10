@@ -2,11 +2,12 @@
 
 ## Notes
 
-- Basis Point (bp, "Bip")
-  - 1 Basis Point is %0.01 (one hundredth of a percent)
+- Basis Points (bps)
+  - Pronounced "Bips"
+  - A basis point is a standard measure for interest rates and other percentages in finance.
+  - One basis point equals 1/100th of 1%, or 0.01% (and .0001 in decimal form).
   - 100 basis points equal 1% (one percent)
   - For every 10,000.00 USD, a 1 basis point expense equals 1.00 USD
-  - The term basis point was developed to easisly communicate fractions of a percent
 
 ## Investing Links
 
@@ -30,14 +31,14 @@ Videos
     - Notes:
       - Contributions to 403b are applied to 20,500.00 403b contribution limit for 2022
       - You can also open up a Voluntary 403b Retirement Account in addition to SUSORP
-        - See: <https://www.usf.edu/hr/benefits/retirement/403bproject.aspx>
+        - See: <https://www.usf.edu/hr/benefits/retirement/403bpsroject.aspx>
 - Providers
   - TIAA
     - Annual Fee: 18.00 USD
     - Low-Cost Funds (3 Fund Portfolio)
-      - `VITSX` (3 bp) Vanguard Total Stock Market Index Fund (same as `VTSAX` or `VTI` ETF)
-      - `VTSNX` (8 bp) Vanguard Total International Stock Index Fund Institution (same as `VTIAX` or `VXUS` ETF)
-      - `VBTIX` (4 bp) Vanguard Total Bond Market Index Fund Institutional (same as `VBTLX` or `BND` ETF)
+      - `VITSX` (3 bps) Vanguard Total Stock Market Index Fund (same as `VTSAX` or `VTI` ETF)
+      - `VTSNX` (8 bps) Vanguard Total International Stock Index Fund Institution (same as `VTIAX` or `VXUS` ETF)
+      - `VBTIX` (4 bps) Vanguard Total Bond Market Index Fund Institutional (same as `VBTLX` or `BND` ETF)
   - Voya
     - Annual Fee: 30.00 USD
   - Equitable
@@ -49,17 +50,17 @@ Videos
   -  For 2022: 20,500 (minus contributions made in 403b portion of SUSORP) (+6500 catch-up [27,000] if 50 or older)
 - Providers
     - TIAA
-      - Annual Fee: 4.4 bp
+      - Annual Fee: 4.4 bps
       - Low-Cost Funds (3 Fund Portfolio)
-        - `VFIAX` (4 bp) - Vanguard 500 Index Fund Admiral (same as `VOO` ETF)
-        - `VTIAX` (11 bp) - Vanugard Total International Stock Index Fund Admiral (same as `VXUS` ETF)
-        - `VBTLX` (5 bp) - Vanguard Total Bond Market Index Fund Admiral (same as `BND` ETF)
+        - `VFIAX` (4 bps) - Vanguard 500 Index Fund Admiral (same as `VOO` ETF)
+        - `VTIAX` (11 bps) - Vanugard Total International Stock Index Fund Admiral (same as `VXUS` ETF)
+        - `VBTLX` (5 bps) - Vanguard Total Bond Market Index Fund Admiral (same as `BND` ETF)
     - Fidelity
-      - Annual Fee: 12.5 bp
+      - Annual Fee: 12.5 bps
       - Low-Cost Funds (3 Fund Portfolio)
-        - `FXAIX` (1.5 bp) - Fidelity SP 500 Index Fund
-        - `FTIHX` (6 bp) - Fidelity Total International Index Fund
-        - `FXNAX` (2.5 bp) - Fidelity U.S. Bond Index Fund
+        - `FXAIX` (1.5 bps) - Fidelity SP 500 Index Fund
+        - `FTIHX` (6 bps) - Fidelity Total International Index Fund
+        - `FXNAX` (2.5 bps) - Fidelity U.S. Bond Index Fund
 - Notes:
   - Contributions can be either:
     - Post-Tax Roth (same idea as a Roth 401k)
@@ -72,15 +73,15 @@ Videos
   -  For 2022: 20,500 (+6500 catch-up [27,000] if 50 or older)
 - Providers
   - Voya
-    - Annual Fee: 6 bp
+    - Annual Fee: 6 bps
   - Nationwide
-    - Annual Fee: 8.25 bp
+    - Annual Fee: 8.25 bps
     - Low-Cost Funds
-      - `VIIIX` (2 bp) - Vanguard Institutional Index Fund - Institutional Plus Shares (SP 500 - same as `VFIAX`)
-      - `VTSNX` (8 bp) Vanguard Total International Stock Index Fund Institution (same as `VTIAX` or `VXUS` ETF)
+      - `VIIIX` (2 bps) - Vanguard Institutional Index Fund - Institutional Plus Shares (SP 500 - same as `VFIAX`)
+      - `VTSNX` (8 bps) Vanguard Total International Stock Index Fund Institution (same as `VTIAX` or `VXUS` ETF)
       - No good bond selection - other than the NRS Florida Fixed Fund at 3.50 % Return (Insurance Product)
   - AIG
-    - Annual Fee: 12 bp
+    - Annual Fee: 12 bps
 - Notes:
   - You can take money out of a 457 before 59.5 years old with no IRS penalty (just pay regular taxes) if you leave your employer
 
