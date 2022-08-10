@@ -77,7 +77,7 @@ Then, in addition, you can also open:
 ### Voluntary 403b (May be opened in addition to SUSORP/FRS)
 
 - Contribution Limit:
-  -  For 2022: 20,500 (minus contributions made in 403b portion of SUSORP) (+6500 catch-up [27,000] if 50 or older)
+  -  For 2022: 20,500 (minus contributions made in 403b portion of SUSORP) (+6,500 catch-up age 50)
 - Providers
     - TIAA
       - Annual Fee: 4.4 bps
@@ -100,7 +100,7 @@ Then, in addition, you can also open:
 ### Voluntary 457
 
 - Contribution Limit:
-  -  For 2022: 20,500 (+6500 catch-up [27,000] if 50 or older)
+  -  For 2022: 20,500 (+6,500 catch-up age 50)
 - Providers
   - Voya
     - Annual Fee: 6 bps
@@ -154,11 +154,11 @@ Long-Term Capital Gains (> 1 Year)
 #### Retirement Contribution Limits
 
 - 403b/401k
-  - 20,500 (+6,500 catch-up age 50 [27,000])
+  - 20,500 (+6,500 catch-up age 50)
 - 457
-  - 20,500 (+6,500 catch-up age 50 [27,000])
+  - 20,500 (+6,500 catch-up age 50)
 - Roth IRA
-  - 6,000 (+1,000 catch-up age 50 [7,000])
+  - 6,000 (+1,000 catch-up age 50)
   - Notes:
     - Single: Phase-out eligibility from 129,000 to 144,000 (MAGI)
     - Married/Jointly: Phase-out eligibility from 204,000 to 214,000 (MAGI)
