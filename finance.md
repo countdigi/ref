@@ -117,6 +117,14 @@ Then, in addition, you can also open:
 
 ## Taxes
 
+- Payroll
+  - OASDI (Old Age, Survivors, and Disability Insurance) (Social Security)
+    - 6.20 % Employee
+  - Medicare
+    - 1.45% Employee
+  - Notes:
+    - OASDI / Medicare Does not apply to HSA, Health Insurance, or Vision contributions - so you save 7.65% on those dollars
+
 ### 2022
 
 #### Single
