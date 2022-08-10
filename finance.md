@@ -20,6 +20,8 @@ Videos
 
 ## USF Retirement
 
+See: <https://www.usf.edu/hr/benefits/retirement/index.aspx>
+
 For your main retirement, you either choose:
 - SUSORP
 - FRS
