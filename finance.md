@@ -36,6 +36,13 @@ Then, in addition, you can also open:
 - Voluntary 403b
 - Voluntary 457
 
+Annual Administrative Fees
+- HSA
+  - Chard Snyder Investment (via WEX): 25 bps
+- FRS
+
+
+
 ### SUSORP (State University System Optional Retirement Plan)
 
 - Account Breakdown

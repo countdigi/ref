@@ -22,6 +22,11 @@ us-east-2 (Ohio) 2022-08
     - 500GB - 0.070 / hour
     - 200GB - 0.080 = $0.32
 
+## git
+
+- `git show <sha>:<path>`
+
+
 ## one-liners
 
 - `comm -12 <sorted_file_a> <sorted_file_b>` - Show lines that appear in both files a and b (intersection)
@@ -33,6 +38,57 @@ us-east-2 (Ohio) 2022-08
 - `--dryrun, -n` - Do not execute anything, and display what would be done.
 - `--snakefile FILE, -s FILE` - The workflow definition in a snakefile.
 - `--keep-going, -k` - Go on with independent jobs if a job fails.
+
+Singularity
+```
+#=====================================================================================================
+# Singularity Specifications
+#=====================================================================================================
+
+SINGULARITY_CMD = " ".join([
+    "/shares/hii/sw/singularity/latest/bin/singularity",
+    "exec",
+    "--bind /shares:/shares",
+    "--bind /hii/work:/hii/work"
+])
+
+#=====================================================================================================
+# Image Specifications
+#=====================================================================================================
+
+IMAGE_HDS_UTIL = os.environ.get("IMAGE_HDS_UTIL", "/shares/hii/images/bioinfo/statgen-hds-util/5c3b611.simg")
+
+#=====================================================================================================
+# Commands
+#=====================================================================================================
+
+BCFTOOLS = " ".join([SINGULARITY_CMD, IMAGE_HTSLIB, "bcftools"])
+```
+
+---
+
+Dynamic environmental variables
+```
+ENV_DEFAULTS = {
+    "FOO": "alpha",
+    "BAR": "beta"
+}
+
+for name, value in ENV_DEFAULTS.items():
+    if os.environ.get(name):
+        vars()[name] = os.environ[name]
+    else:
+        vars()[name] = value
+```
+
+## python
+
+Date diff in days
+
+```
+(date(2022, 9, 6) - date(2022, 7, 11)).days
+```
+
 
 ## bcftools
 
