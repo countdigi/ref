@@ -185,6 +185,11 @@ else:
 
 ## Time
 
+Get year
+```python
+datetime.datetime.now().year
+```
+
 Print current time
 ```python
 import time

@@ -38,3 +38,20 @@ chr20   1110696  rs6040355  A    G,T     67    PASS    NS=2;DP=10;AF=0.333,0.667
 chr20   1230237  .          T    .       47    PASS    NS=3;DP=13;AA=T                    GT:GQ:DP:HQ  0|0:54:7:56,60  0|0:48:4:51,51  0/0:61:2
 chr20   1234567  microsat1  GTC  G,GTCT  50    PASS    NS=3;DP=9;AA=G                     GT:GQ:DP     0/1:35:4        0/2:17:2        1/1:40
 ```
+# Variant Call Format Reference
+
+- Reference: <https://samtools.github.io/hts-specs/VCFv4.2.pdf>
+
+
+## Header Line Syntax
+
+- `CHROM` - The name of the sequence (typically a chromosome) on which the variation is being called. This sequence is usually known as 'the reference sequence', i.e. the sequence against which the given sample varies.
+- `POS` - The 1-based position of the variation on the given sequence.
+- `ID` - The identifier of the variation, e.g. a dbSNP rs identifier or just . if unknown. Multiple identifiers should be separated by semi-colons without white-space.
+- `REF` - The reference base (or bases in the case of an indel) at the given position on the given reference sequence.
+- `ALT` - The list of alternative alleles at this position.
+- `QUAL` - A quality score associated with the inference of the given alleles.
+- `FILTER` - A flag indicating which of a given set of filters the variation has passed.
+- `INFO` - An extensible list of key-value pairs (fields) describing the variation. See below for some common fields. Multiple fields are separated by semicolons with optional values in the format: "<key>=[,data]".
+- `FORMAT` - An (optional) extensible list of fields for describing the samples. See below for some common fields.
+- `SAMPLE,[SAMPLE...]` - For each (optional) sample described in the file, values are given for the fields listed in FORMAT
