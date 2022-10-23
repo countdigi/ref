@@ -55,3 +55,16 @@ chr20   1234567  microsat1  GTC  G,GTCT  50    PASS    NS=3;DP=9;AA=G           
 - `INFO` - An extensible list of key-value pairs (fields) describing the variation. See below for some common fields. Multiple fields are separated by semicolons with optional values in the format: "<key>=[,data]".
 - `FORMAT` - An (optional) extensible list of fields for describing the samples. See below for some common fields.
 - `SAMPLE,[SAMPLE...]` - For each (optional) sample described in the file, values are given for the fields listed in FORMAT
+
+## Notes
+
+AF (Alternate allele frequency)
+- AF is the frequency for an alternate allele
+- AF is calculated (AC/AN)
+- AF tag can be used to infer the minor allele frequency (MAF) (Check bcftools fill-tags plugin)
+- If AF < 0.5, then AF is equal to MAF
+- Rare variants generally has AF or MAF < 5 % (0.05)
+
+MAF (Minor allele frequency)
+- MAF refers to the minor allele (least frequent) frequency
+- An alternate allele may not be always minor allele

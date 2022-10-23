@@ -10,6 +10,10 @@ The versioning of Plink is confusing. Plink 1.9 is sometimes referred to as Plin
 
 - Plink presentation <http://faculty.washington.edu/tathornt/SISG2017/lectures/SISG2017session03.pdf>
 
+## Important Flags
+
+- `--nonfounders` - By default, nonfounders are not counted by `--freq[x]` or `--maf/--max-maf/--hwe`. Use the `--nonfounders` flag to include them.
+
 ## Quality Control
 
 Summary statistics options:
