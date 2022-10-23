@@ -10,9 +10,13 @@ The versioning of Plink is confusing. Plink 1.9 is sometimes referred to as Plin
 
 - Plink presentation <http://faculty.washington.edu/tathornt/SISG2017/lectures/SISG2017session03.pdf>
 
-## Important Flags
+## Important Caveats
 
-- `--nonfounders` - By default, nonfounders are not counted by `--freq[x]` or `--maf/--max-maf/--hwe`. Use the `--nonfounders` flag to include them.
+### Nonfounders
+
+- By default, nonfounders are not counted by `--freq[x]` or `--maf/--max-maf/--hwe`.  Use the `--nonfounders` flag to include them.
+- A nonfounder is a sample with at least one known parental ID from the current analysis (note the parent does not have to be in the dataset).
+- See also: `--nonfounders`, `--make-founders`, `--filter-founders`
 
 ## Quality Control
 
@@ -28,12 +32,15 @@ Inclusion/Exclusion criteria
 - Individual missing rate: `--mind`
 - Hardy-Weinberg: `--hwe`
 
-## Flags
+## Chromosome Notation
 
-```
---output-chr '26' (default), 'M', 'MT', '0M', 'chr26', 'chrM', and 'chrMT'.
-```
+Numerical Chromosome Codes
+- 23 = chrX
+- 24 = chrY
+- 25 = chrXY (Pseudo-autosomal region of X)
+- 26 = chrM, chrMT (Mitochondrial)
 
+Flag to modify notation:: `--output-chr <26(default),M,MT,0M,chr26,chrM,chrMT>`
 
 ## Summary
 
@@ -75,7 +82,7 @@ Format
 - Column 4: Maternal ID (exclude with `--no-parents`)
 - Column 5: Sex (1=male; 2=female; other=unknown) (exclude with `--no-sex`)
 - Column 6: Phenotype (exclude with `--no-pheno`)
-- Column 7 and onwards: Genotypes (can be any character except 0 which is, by default, the missing genotype character.
+- Column 7+8, 9+10, ...: Genotypes (can be any character except 0 which is, by default, the missing genotype character.
 
 ## Genotypes
 
@@ -96,7 +103,6 @@ FAM001  2  0 0  1  2  A A  A G  0 0
 - The phenotype can be either a quantitative trait or an affection status column
 - PLINK will automatically detect which type (i.e. based on whether a value other than 0, 1, 2 or the missing genotype code is observed).
 
-
 ## Map File
 
 Format
@@ -104,10 +110,3 @@ Format
 - Column 2: rs# or snp identifier
 - Column 3: Genetic distance (morgans)
 - Column 4: Base-pair position (bp units)
-
-Chromosome Codes
-- X = 23
-- Y = 24
-- XY = 25 (Pseudo-autosomal region of X)
-- M/MT =26 (Mitochondrial)
-
