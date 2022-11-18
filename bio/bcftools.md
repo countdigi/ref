@@ -13,6 +13,10 @@
 9. FORMAT - Colon delimited list of the format of individual genotypes in the following fields.
 10. Sample(s) - Individual genotype information defined by FORMAT (Column 10, ...etc.)
 
+## Quick Lines
+
+- List all samples: `bcftools query --list-samples data.vcf
+
 
 ```
 *bcftools filter
