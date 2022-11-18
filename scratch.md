@@ -1,5 +1,39 @@
 # scratch
 
+
+Singularity forked but I have a feeling the apptainer version will be the future as it is under the Linux Foundation Stewardship.
+- <https://github.com/apptainer/apptainxer>
+
+
+./mconfig --without-suid
+
+Apptainer uses SIF files
+
+SIF - Standard Interchange Format, called SIF, is a geospatial data exchange format. A standard or neutral format used to move graphics files between DOD Project 2851 and is currently codified in Content Standard for Digital Geospatial Metadata maintained by the Federal Geographic Data Committee.
+
+If you want to have the best performance for unprivileged mounts of SIF files for multi-core applications, you can optionally install an improved performance version of `squashfuse_ll`.
+
+Apptainer Dependencies on CentOS/RHEL:
+```
+# Install basic tools for compiling
+sudo yum groupinstall -y 'Development Tools'
+
+# Ensure EPEL repository is available
+sudo yum install -y epel-release
+
+# Install RPM packages for dependencies
+sudo yum install -y \
+    libseccomp-devel \
+    squashfs-tools \
+    squashfuse \
+    fuse-overlayfs \
+    fakeroot \
+    /usr/*bin/fuse2fs \
+    cryptsetup \
+    wget git
+```
+
+
 ## Deep Learning Illustrated: A Visual Interactive Guide to Artificial Intelligence
 
 Hubel and Wiesel discovered that neurons receiving input from the eye are in general most responsive

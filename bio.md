@@ -1,5 +1,7 @@
 # Bioinformatics Reference
 
+- HRC - Haplotype Reference Consortium
+
 - Adenine (A) binds to Thymine (T)
 - Guanine (G) binds to Cytosine (C)
 - Purines: A/G, Pyrimindines: C/T
