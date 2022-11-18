@@ -24,7 +24,7 @@
 - `--no-version` - Do not append version and command line to the header
 - `--output=<fname>`
 - `--output-type=<b|u|z|v>`
-  - `b: compressed BCF`,
+  - `b: compressed BCF`
   - `u: uncompressed BCF` (Fastest for streaming to next bcftools invocation)
   - `z: compressed VCF`
   - `v: uncompressed VCF` (Default)
@@ -40,7 +40,34 @@
 ### bcftools query
 
 - Example
-  - `bcftools query -f '%CHROM\t%POS\t%REF\t%ALT[\t%SAMPLE=%GT]\n' file.vcf`
+  - `bcftools query --fields='%CHROM\t%POS\t%REF\t%ALT[\t%SAMPLE=%GT]\n' file.vcf`
+
+### bcftools plugin fill-tags
+
+- Fill almost all available tags
+  - `bcftools plugin fill-tags file.vcf -- --tags=all`
+- Update AN,AC,MAF
+  - `bcftools plugin fill-tags file.vcf -- --tags=AN,AC,MAF`
+- List all available tags
+  - `bcftools plugin fill-tags -- --list-tags`
+    ```
+    INFO/AC        Number:A  Type:Integer  ..  Allele count in genotypes
+    INFO/AC_Hom    Number:A  Type:Integer  ..  Allele counts in homozygous genotypes
+    INFO/AC_Het    Number:A  Type:Integer  ..  Allele counts in heterozygous genotypes
+    INFO/AC_Hemi   Number:A  Type:Integer  ..  Allele counts in hemizygous genotypes
+    INFO/AF        Number:A  Type:Float    ..  Allele frequency
+    INFO/AN        Number:1  Type:Integer  ..  Total number of alleles in called genotypes
+    INFO/ExcHet    Number:A  Type:Float    ..  Test excess heterozygosity; 1=good, 0=bad
+    INFO/END       Number:1  Type:Integer  ..  End position of the variant
+    INFO/F_MISSING Number:1  Type:Float    ..  Fraction of missing genotypes (all samples, experimental)
+    INFO/HWE       Number:A  Type:Float    ..  HWE test (PMID:15789306); 1=good, 0=bad
+    INFO/MAF       Number:1  Type:Float    ..  Frequency of the second most common allele
+    INFO/NS        Number:1  Type:Integer  ..  Number of samples with data
+    INFO/TYPE      Number:.  Type:String   ..  The record type (REF,SNP,MNP,INDEL,etc)
+    FORMAT/VAF     Number:A  Type:Float    ..  The fraction of reads with the alternate allele, requires FORMAT/AD or ADF+ADR
+    FORMAT/VAF1    Number:1  Type:Float    ..  The same as FORMAT/VAF but for all alternate alleles cumulatively
+    ```
+
 
 ---
 
