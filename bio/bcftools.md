@@ -13,9 +13,36 @@
 9. FORMAT - Colon delimited list of the format of individual genotypes in the following fields.
 10. Sample(s) - Individual genotype information defined by FORMAT (Column 10, ...etc.)
 
+## Concepts
+
+- BCF is not smaller than compressed VCF, but is optimized for processing speed
+- Indexing - CSI (Coordinate Sorted Index) is newer default, `--tbi` (TABIX-Based Indexing) is legacy
+  - Tabix indexing is a generalization of BAM indexing for generic TAB-delimited files
+
+## Common Options
+
+- `--no-version` - Do not append version and command line to the header
+- `--output=<fname>`
+- `--output-type=<b|u|z|v>`
+  - `b: compressed BCF`,
+  - `u: uncompressed BCF` (Fastest for streaming to next bcftools invocation)
+  - `z: compressed VCF`
+  - `v: uncompressed VCF` (Default)
+- `--threads=<n>`
+
+
 ## Quick Lines
 
-- List all samples: `bcftools query --list-samples data.vcf
+
+- List all samples
+  - `bcftools query --list-samples file.vcf`
+
+### bcftools query
+
+- Example
+  - `bcftools query -f '%CHROM\t%POS\t%REF\t%ALT[\t%SAMPLE=%GT]\n' file.vcf`
+
+---
 
 
 ```
