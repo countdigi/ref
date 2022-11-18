@@ -1,5 +1,19 @@
 # Bcftools
 
+## VCF Format
+
+1. CHROM - Chromosome name
+2. POS - 1-based position. For an indel, this is the position preceding the indel.
+3. ID - Variant identifier. Usually the dbSNP rsID.
+4. REF - Reference sequence at POS involved in the variant. For a SNP, it is a single base.
+5. ALT - Comma delimited list of alternative seuqence(s).
+6. QUAL - Phred-scaled probability of all samples being homozygous reference.
+7. FILTER - Semicolon delimited list of filters that the variant fails to pass.
+8. INFO - Semicolon delimited list of variant information.
+9. FORMAT - Colon delimited list of the format of individual genotypes in the following fields.
+10. Sample(s) - Individual genotype information defined by FORMAT (Column 10, ...etc.)
+
+
 ```
 *bcftools filter
 *Filter variants per region (in this example, print out only variants mapped to chr1 and chr2)
